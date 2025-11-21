@@ -1,0 +1,35 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Open WSL Bash",
+            "type": "shell",
+            "command": "source venv/bin/activate",
+            "problemMatcher": [],
+            "presentation": {
+                "panel": "new",
+                "reveal": "silent",
+                "clear": true
+            },
+            "options": {
+                "shell": {
+                    "executable": "/bin/bash",
+                    "args": []
+                }
+            }
+        },
+
+        {
+            "label": "Update Dev Reference in All Repos",
+            "type": "shell",
+            "command": "/home/frank/update_dev_reference.sh",
+            "problemMatcher": [],
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            }
+        }
+    ]
+}
