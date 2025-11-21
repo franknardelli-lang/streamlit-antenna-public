@@ -424,6 +424,81 @@ git push                     → Push to GitHub
  END OF HOME ASSISTANT CONFIG WORKFLOW REFERENCE
 ============================================================
 
+That makes perfect sense. The ability to switch between the terminal and the GUI for the final steps is a key feature of VS Code, and it's best to document both options.
+
+I will integrate the VS Code GUI steps as an alternative path after the crucial `rm -rf .git` command.
+
+Here is the revised reference document, clearly showing the choice between the Terminal and GUI for initialization and publishing:
+
+-----
+
+```
+------------------------------------------------------------
+  MIGRATE PRIVATE REPO TO NEW PUBLIC REPO (STREAMLIT DEPLOY)
+------------------------------------------------------------
+
+**GOAL:** Copy files from private 'work-stuff' to a new, clean public repo for deployment.
+
+**AUTHENTICATION (One-Time Setup):**
+
+1.  **Generate PAT:** Go to GitHub (Settings → Developer settings → Personal access tokens → Tokens (classic)). Create a PAT with the **repo** scope.
+2.  **Use PAT:** When prompted for a password during the first clone operation, paste the **Personal Access Token (PAT)**. (Windows Credential Manager securely caches this for future use.)
+
+**CLONE & CLEANUP WORKFLOW (Terminal Commands - MUST USE TERMINAL):**
+
+1.  **Clone & Rename:**
+    git clone https://github.com/franknardelli-lang/work-stuff.git streamlit-antenna-public
+    DESCRIPTION: Clones all files into a new folder.
+
+2.  **Enter Folder:**
+    cd streamlit-antenna-public
+
+3.  **Wipe History (CRUCIAL STEP):**
+    rm -rf .git
+    DESCRIPTION: Deletes the old .git folder, removing all history and remote links.
+
+---
+
+**INITIALIZATION AND PUBLISHING (Choose ONE Path):**
+
+### OPTION A: Continue in TERMINAL (Git Commands)
+
+4A. **Initialize New:**
+    git init -b main
+    DESCRIPTION: Initializes the folder as a new Git repository.
+
+5A. **Stage & Commit:**
+    git add .
+    git commit -m "Initial public commit"
+
+6A. **Link & Push:**
+    **Action:** Manually create empty repo on GitHub.
+    **Command:** git remote add origin <NEW_HTTPS_URL>
+    **Command:** git push -u origin main
+    DESCRIPTION: Links local repo to the new remote and pushes all files.
+
+### OPTION B: Switch to VS CODE GUI (Recommended)
+
+4B. **Initialize:**
+    **Action:** Open folder in VS Code. Go to Source Control (Ctrl+Shift+G) and click **Initialize Repository**.
+    DESCRIPTION: Initializes the folder as a new Git repository (equivalent to git init).
+
+5B. **Stage & Commit:**
+    **Action:** In Source Control, click **+** (Stage All), type message, and click **Commit (✓)**.
+
+6B. **Publish:**
+    **Action:** Click the **Publish Branch** button. Select **Publish to GitHub Public Repository**.
+    DESCRIPTION: VS Code automatically creates the new public repo on GitHub and pushes the code.
+
+------------------------------------------------------------
+  SUMMARY OF KEY COMMANDS
+------------------------------------------------------------
+
+git clone <URL> <NAME>        → Clone a repo into a new directory
+rm -rf .git                    → Delete local Git history (DANGER: USE CAREFULLY)
+git init -b main               → Initialize folder as a brand new Git repo
+```
+
 
 
 If you want, I can generate:
