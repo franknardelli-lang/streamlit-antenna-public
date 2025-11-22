@@ -1,257 +1,397 @@
-
 Developer Quick Reference Guide
+
 ===============================
 
 This guide summarizes the most important commands, workflows, and shortcuts you’ll use in WSL, Git, GitHub, and VS Code.
 
 ----------------------------------------------------------------------
+
 SECTION 1 — Python Virtual Environments (WSL)
+
 ----------------------------------------------------------------------
 
 1) Create a virtual environment
+
    Command:
+
        python3 -m venv venv
+
    Meaning:
+
        Creates an isolated Python environment inside a folder named "venv".
+
    When to use:
+
        Once per repo, right after cloning or creating a project.
 
 2) Activate a virtual environment  **(IMPORTANT — memorize)**
+
    Command:
+
        source venv/bin/activate
+
    Meaning:
+
        Switches Python to use the repo’s local packages.
+
    When to use:
+
        Before running scripts, installing packages, or using Streamlit.
 
 3) Deactivate a virtual environment
+
    Command:
+
        deactivate
+
    Meaning:
+
        Returns to system Python.
+
    When to use:
+
        When done with development.
 
 4) Install Python packages inside the venv
+
    Command:
+
        pip install <package>
+
    Example:
+
        pip install numpy matplotlib streamlit
+
    Meaning:
+
        Installs packages only into this project (not global).
 
 5) Generate a requirements file
+
    Command:
+
        pip freeze > requirements.txt
+
    Meaning:
+
        Saves installed packages so others can recreate the environment.
 
 ----------------------------------------------------------------------
 
 SECTION 2 — Running Python & Streamlit
+
 ----------------------------------------------------------------------
 
 1) Run a Python script
+
    Command:
+
        python script.py
+
    Meaning:
+
        Execute a Python file using the active venv.
 
 2) Run a Streamlit app
+
    Command:
+
        streamlit run app.py
+
    Meaning:
+
        Launches a web UI for Streamlit-based applications.
 
 3) Kill a running process (such as Streamlit)
+
    Command:
+
        Ctrl + C
+
    Meaning:
+
        Stops whatever is running in the terminal.
 
 ----------------------------------------------------------------------
 
 SECTION 3 — Git & GitHub Commands (WSL Git)
+
 ----------------------------------------------------------------------
 
 === INITIAL SETUP ===
+
 Set your global identity (do this once):
+
     git config --global user.name "Your Name"
-    git config --global user.email "your-email@users.noreply.github.com"
+
+    git config --global user.email "[your-email@users.noreply.github.com](mailto:your-email@users.noreply.github.com)"
 
 Verify:
+
     git config --global --list
 
 === EVERYDAY WORKFLOW (memorize these) ===
 
 1) Check repo status  **(MEMORIZE)**
+
    Command:
+
        git status
+
    Meaning:
+
        Shows changed files, staged files, and branch status.
 
 2) Stage all changes  **(MEMORIZE)**
+
    Command:
+
        git add .
+
    Meaning:
+
        Adds all modified/new files to be committed.
 
 3) Commit changes  **(MEMORIZE)**
+
    Command:
+
        git commit -m "Describe your change"
+
    Meaning:
+
        Saves your change locally.
 
 4) Push to GitHub  **(MEMORIZE)**
+
    Command:
+
        git push
+
    Meaning:
+
        Uploads your commits to GitHub.
 
 5) Pull latest changes (from GitHub)
+
    Command:
+
        git pull
+
    Meaning:
+
        Downloads changes from the remote branch and merges them.
 
 === CLEANUP & REPAIR ===
 
 6) Remove accidentally tracked venv/caches
+
    Command:
+
        git rm -r --cached venv
+
        git rm -r --cached __pycache__
+
    Meaning:
+
        Untracks files without deleting them locally.
 
 7) View commit history (simple)
+
    Command:
+
        git log --oneline --graph --decorate
+
    Meaning:
+
        Shows clean tree history.
 
 8) Switch branches
+
    Command:
+
        git checkout <branchname>
 
 9) Create a new branch
+
    Command:
+
        git checkout -b <branchname>
 
 ----------------------------------------------------------------------
 
 SECTION 4 — VS Code (WSL)
+
 ----------------------------------------------------------------------
 
 === ESSENTIAL VS CODE COMMANDS ===
 
 1) Reload Window  **(VERY IMPORTANT)**
+
    Shortcut:
+
        Ctrl + Shift + P → “Developer: Reload Window”
+
    Meaning:
+
        Restarts the VS Code UI without closing files.
 
 2) Open a folder in WSL
+
    Terminal command:
+
        code .
+
    Meaning:
+
        Opens the current folder in full VS Code.
 
 3) Open a specific repo from anywhere
+
    Command:
+
        code ~/github/<repo>
 
 4) Toggle terminal
+
    Shortcut:
+
        Ctrl + `
+
    Meaning:
+
        Opens or hides the integrated terminal.
 
 5) Create a new terminal
+
    Shortcut:
+
        Ctrl + Shift + `
+
    Meaning:
+
        Opens a new terminal tab.
 
 6) Split terminal
+
    Shortcut:
+
        Ctrl +    Meaning:
+
        Splits the terminal into two panes.
 
 7) Search across files
+
    Shortcut:
+
        Ctrl + Shift + F
 
 8) Format code (Python auto-format)
+
    Shortcut:
+
        Shift + Alt + F
 
 ----------------------------------------------------------------------
 
 SECTION 5 — WSL File Navigation
+
 ----------------------------------------------------------------------
 
 1) Change directories
+
    Command:
+
        cd <path>
+
    Example:
+
        cd ~/github/python-practice
 
 2) Go back one directory
+
    Command:
+
        cd ..
 
 3) List files
+
    Command:
+
        ls
+
    Variants:
+
        ls -l        → long list
+
        ls -a        → show hidden files
 
 4) Show current directory
+
    Command:
+
        pwd
 
 5) Remove a folder
+
    Command:
+
        rm -r <folder>
 
 ----------------------------------------------------------------------
 
 SECTION 6 — Useful System Tools
+
 ----------------------------------------------------------------------
 
 1) Kill a frozen process
+
    Command:
+
        pkill python3
+
        pkill streamlit
 
 2) Install a missing Linux package
+
    Command:
+
        sudo apt install <package>
 
 3) Update package lists
+
    Command:
+
        sudo apt update
 
 ----------------------------------------------------------------------
 
 ----------------------------------------------------------------------
+
 SECTION 7 — Updating This Developer Reference File Across All Repos
+
 ----------------------------------------------------------------------
 
 This file (dev_reference.txt) lives inside every repository.  
+
 The master copy is located at:
 
     ~/dev_reference.txt
 
     To open master copy:
+
     Ctrl + P
+
     then type
+
     ~/dev_reference.txt         exactly like this, you have to type the "~" to get the master file
+
     Press Enter.
+
     This always opens the MASTER file — not a repo copy.
 
 When you update the master copy, you can automatically sync the new
+
 version to all repositories using the update script.
 
 Run this command from your WSL terminal:
@@ -259,196 +399,187 @@ Run this command from your WSL terminal:
     ./update_dev_reference.sh
 
 What this script does:
+
 - Copies the master dev_reference.txt into each repo under ~/github
+
 - Stages the updated file
+
 - Commits it (only if changed)
+
 - Pushes the update to GitHub
+
 - Skips repositories with no changes
 
 You can also run it from VS Code:
 
 1. Press Ctrl + Shift + P
+
 2. Select “Run Task”
+
 3. Choose “Update Dev Reference in All Repos”
 
 ============================================================
-  HOME ASSISTANT CONFIG WORKFLOW (WSL) – COMMAND REFERENCE
-============================================================
+HOME ASSISTANT CONFIG WORKFLOW (WSL) – UPDATED REFERENCE
+========================================================
 
 NOTE:
-All of your working repositories live in:
-    /home/frank/github/
-This is your main workspace. If you ever get lost, run:
-    cd ~/github
-    ls
-to find your way back.
+Your *live* Home Assistant config (the one HA OS actually uses) is mounted in WSL at:
+/mnt/ha-config
 
-Your Home Assistant *live* configuration folder (the one running
-inside Home Assistant OS) is mounted at:
-    /mnt/ha-config
-Edits made here take effect immediately inside Home Assistant.
+Your *Git repo* version of the config lives separately at:
+~/github/config
 
-------------------------------------------------------------
-  OPENING THE HOME ASSISTANT CONFIG FOLDER
-------------------------------------------------------------
+You **edit in /mnt/ha-config**, then **sync → commit → push** using the automated `ha-sync` script.
 
-1. Open config in VS Code (recommended):
-    code /mnt/ha-config
-DESCRIPTION:
-    Launches VS Code pointing directly to the HA config folder.
+---
 
-2. Open config via VS Code GUI:
-    Use "Open Folder…" and TYPE:
-        /mnt/ha-config
-DESCRIPTION:
-    VS Code does not auto-suggest /mnt/* paths, but they work.
+## OPENING AND EDITING THE LIVE HOME ASSISTANT CONFIG
 
-3. Navigate to config folder in a terminal:
-    cd /mnt/ha-config
-DESCRIPTION:
-    Moves your terminal into the mounted Home Assistant config.
+1. Open live config in VS Code:
+   code /mnt/ha-config
+   DESCRIPTION:
+   Opens VS Code directly inside the Home Assistant config folder.
 
-4. Verify you're in the correct folder:
-    ls
-DESCRIPTION:
-    Should list files like configuration.yaml, automations.yaml, etc.
+2. Open via VS Code GUI:
+   "Open Folder…" → type exactly:
+   /mnt/ha-config
+   DESCRIPTION:
+   VS Code won’t auto-suggest /mnt paths but they work.
 
-------------------------------------------------------------
-  GIT WORKFLOW FOR HA CONFIG REPO
-------------------------------------------------------------
+3. Change directory in terminal:
+   cd /mnt/ha-config
+   DESCRIPTION:
+   This is the real, live HA config directory.
 
-IMPORTANT:
-Your Git repository is NOT inside /mnt/ha-config.
-The live Home Assistant directory is not a safe Git repo location.
+4. Confirm you are in the right place:
+   ls
+   DESCRIPTION:
+   You should see files like: configuration.yaml, automations.yaml, scenes.yaml, etc.
 
-Your actual Git repo lives here:
-    ~/github/config
+---
 
-The correct workflow is:
-1. Edit files inside /mnt/ha-config (live HA config)
-2. Sync changes from /mnt/ha-config into ~/github/config
-3. Commit and push from inside ~/github/config
+## WHY YOU *DON’T* PUT A GIT REPO INSIDE /mnt/ha-config
 
-------------------------------------------------------------
-  SYNC LIVE CONFIG INTO YOUR REPO
-------------------------------------------------------------
+Home Assistant constantly writes logs, databases, and cache files.
+If a Git repo is placed inside /mnt/ha-config, Git will constantly detect noisy changes.
 
-Use rsync (preferred — preserves structure, efficient):
-    rsync -av /mnt/ha-config/ ~/github/config/
+Therefore:
+✔ /mnt/ha-config → **live working directory (NOT a repo)**
+✔ ~/github/config → **your actual Git repository**
 
-Or use cp -r (simple but less robust):
-    cp -r /mnt/ha-config/* ~/github/config/
+---
 
-DESCRIPTION:
-    Copies your live Home Assistant configuration into your
-    version-controlled Git repo.
+## THE ha-sync AUTOMATION SCRIPT (RECOMMENDED WORKFLOW)
 
-------------------------------------------------------------
-  COMMITTING CHANGES TO GITHUB
-------------------------------------------------------------
+Instead of manually copying files and remembering exclusions,
+you use the command:
 
-1. Navigate into your HA config repo:
-    cd ~/github/config
+```
+ha-sync
+```
 
-2. Check repo status:
-    git status
-DESCRIPTION:
-    Shows which files are modified, untracked, staged, etc.
+This script:
 
-3. Stage all modified files:
-    git add .
-DESCRIPTION:
-    Adds every changed file to the upcoming commit.
+1. Rsyncs from /mnt/ha-config → ~/github/config
+2. Excludes logs, databases, caches, tts/, storage/, node-red/, etc.
+3. Stages changes
+4. Auto-commits with timestamp
+5. Pushes to GitHub
 
-4. Commit your changes:
-    git commit -m "Update HA config: your message here"
-DESCRIPTION:
-    Saves changes locally with a descriptive message.
+Runs safely from *any directory except* ~/github/config.
 
-5. Push changes to GitHub:
-    git push
-DESCRIPTION:
-    Uploads your commits to your GitHub repository.
+---
 
-6. Pull latest changes from GitHub:
-    git pull
-DESCRIPTION:
-    Syncs your local folder with any changes made elsewhere.
+## WHAT ha-sync EXCLUDES
 
+The script excludes everything that should **never** go in Git:
 
-------------------------------------------------------------
-  PYTHON VIRTUAL ENVIRONMENT COMMANDS
-------------------------------------------------------------
+* dev_reference.txt (your master copy)
+* Home Assistant databases (*.db, *.db-shm, *.db-wal)
+* Log files (home-assistant*.log*)
+* .storage/
+* .cloud/
+* deps/
+* tts/
+* node-red/
 
-1. Activate venv inside a repo:
-    source venv/bin/activate
-DESCRIPTION:
-    Enables the virtual environment so Python uses repo-specific
-    packages instead of global packages.
+These match your .gitignore rules, ensuring clean commits.
 
-2. Deactivate venv:
-    deactivate
-DESCRIPTION:
-    Returns terminal to normal system-level Python.
+---
 
-------------------------------------------------------------
-  WSL NAVIGATION SHORTCUTS
-------------------------------------------------------------
+## MANUAL SYNC (ONLY IF NEEDED)
 
-1. Jump to the root workspace:
-    cd ~/github
-DESCRIPTION:
-    Brings you back to your main repos folder no matter where you are.
+If you ever need to sync manually (rare), use:
 
-2. List repos:
-    ls
-DESCRIPTION:
-    Shows all repos currently inside ~/github.
+```
+rsync -av --exclude='dev_reference.txt' /mnt/ha-config/ ~/github/config/
+```
 
-------------------------------------------------------------
-  OPTIONAL BASH SHORTCUTS (ADD TO ~/.bashrc)
-------------------------------------------------------------
+But normally you should simply run:
 
-alias haconfig="code /mnt/ha-config"
-DESCRIPTION:
-    Opens Home Assistant config in VS Code instantly.
+```
+ha-sync
+```
 
-alias repos="cd ~/github && ls"
-DESCRIPTION:
-    Navigates to your repos folder and lists them.
+---
 
-To enable these, add to ~/.bashrc and run:
-    source ~/.bashrc
+## COMMITTING CHANGES (IF DOING MANUALLY)
 
-------------------------------------------------------------
-  RUNNING PYTHON SCRIPTS (INSIDE A REPO)
-------------------------------------------------------------
+If you do not use ha-sync, the workflow is:
 
-1. Activate the repo's venv:
-    source venv/bin/activate
+1. Go to repo:
+   cd ~/github/config
 
-2. Run Python directly:
-    python3 scriptname.py
+2. Check status:
+   git status
 
-3. Example: run Streamlit app:
-    streamlit run streamlit_twin_paradox.py
+3. Stage changes:
+   git add .
 
-------------------------------------------------------------
-  SUMMARY OF MOST IMPORTANT COMMANDS TO REMEMBER
-------------------------------------------------------------
+4. Commit:
+   git commit -m "Update HA config"
 
-code /mnt/ha-config          → Open HA config in VS Code
-cd /mnt/ha-config            → Enter HA config folder
-cd ~/github                  → Return to repos root
-source venv/bin/activate     → Enable Python venv
-deactivate                   → Disable Python venv
-git status                   → Check repo state
-git add .                    → Stage all changes
-git commit -m "msg"          → Commit changes
-git push                     → Push to GitHub
+5. Push:
+   git push
+
+---
+
+## MODIFYING THE ha-sync SCRIPT
+
+Open the script in VS Code:
+code ~/.local/bin/ha-sync
+
+or edit inside terminal:
+nano ~/.local/bin/ha-sync
+
+After modifying it, make sure it stays executable:
+chmod +x ~/.local/bin/ha-sync
+
+---
+
+## WORKFLOW SUMMARY (MEMORIZE THIS)
+
+✔ Step 1 — Edit configuration inside live folder:
+cd /mnt/ha-config
+(make your YAML changes)
+
+✔ Step 2 — Sync, stage, commit, and push:
+ha-sync
+
+✔ Step 3 — You’re done. GitHub now has a clean, history-safe copy.
+
+---
+
+## MOST IMPORTANT COMMANDS (QUICK REFERENCE)
+
+code /mnt/ha-config      → Open HA config in VS Code
+cd /mnt/ha-config        → Go to live config folder
+ha-sync                  → Sync → commit → push (automated)
+cd ~/github              → Return to repos root
 
 ============================================================
- END OF HOME ASSISTANT CONFIG WORKFLOW REFERENCE
+END OF HOME ASSISTANT CONFIG WORKFLOW REFERENCE
+
 ============================================================
 
 That makes perfect sense. The ability to switch between the terminal and the GUI for the final steps is a key feature of VS Code, and it's best to document both options.
@@ -460,8 +591,11 @@ Here is the revised reference document, clearly showing the choice between the T
 -----
 
 ```
+
 ------------------------------------------------------------
+
   MIGRATE PRIVATE REPO TO NEW PUBLIC REPO (STREAMLIT DEPLOY)
+
 ------------------------------------------------------------
 
 **GOAL:** Copy files from private 'work-stuff' to a new, clean public repo for deployment.
@@ -469,19 +603,25 @@ Here is the revised reference document, clearly showing the choice between the T
 **AUTHENTICATION (One-Time Setup):**
 
 1.  **Generate PAT:** Go to GitHub (Settings → Developer settings → Personal access tokens → Tokens (classic)). Create a PAT with the **repo** scope.
+
 2.  **Use PAT:** When prompted for a password during the first clone operation, paste the **Personal Access Token (PAT)**. (Windows Credential Manager securely caches this for future use.)
 
 **CLONE & CLEANUP WORKFLOW (Terminal Commands - MUST USE TERMINAL):**
 
 1.  **Clone & Rename:**
-    git clone https://github.com/franknardelli-lang/work-stuff.git streamlit-antenna-public
+
+    git clone [https://github.com/franknardelli-lang/work-stuff.git](https://github.com/franknardelli-lang/work-stuff.git) streamlit-antenna-public
+
     DESCRIPTION: Clones all files into a new folder.
 
 2.  **Enter Folder:**
+
     cd streamlit-antenna-public
 
 3.  **Wipe History (CRUCIAL STEP):**
+
     rm -rf .git
+
     DESCRIPTION: Deletes the old .git folder, removing all history and remote links.
 
 ---
@@ -491,46 +631,69 @@ Here is the revised reference document, clearly showing the choice between the T
 ### OPTION A: Continue in TERMINAL (Git Commands)
 
 4A. **Initialize New:**
+
     git init -b main
+
     DESCRIPTION: Initializes the folder as a new Git repository.
 
 5A. **Stage & Commit:**
+
     git add .
+
     git commit -m "Initial public commit"
 
 6A. **Link & Push:**
+
     **Action:** Manually create empty repo on GitHub.
+
     **Command:** git remote add origin <NEW_HTTPS_URL>
+
     **Command:** git push -u origin main
+
     DESCRIPTION: Links local repo to the new remote and pushes all files.
 
 ### OPTION B: Switch to VS CODE GUI (Recommended)
 
 4B. **Initialize:**
+
     **Action:** Open folder in VS Code. Go to Source Control (Ctrl+Shift+G) and click **Initialize Repository**.
+
     DESCRIPTION: Initializes the folder as a new Git repository (equivalent to git init).
 
 5B. **Stage & Commit:**
+
     **Action:** In Source Control, click **+** (Stage All), type message, and click **Commit (✓)**.
 
 6B. **Publish:**
+
     **Action:** Click the **Publish Branch** button. Select **Publish to GitHub Public Repository**.
+
     DESCRIPTION: VS Code automatically creates the new public repo on GitHub and pushes the code.
 
 ------------------------------------------------------------
+
   SUMMARY OF KEY COMMANDS
+
 ------------------------------------------------------------
 
 git clone <URL> <NAME>        → Clone a repo into a new directory
+
 rm -rf .git                    → Delete local Git history (DANGER: USE CAREFULLY)
+
 git init -b main               → Initialize folder as a brand new Git repo
+
 ```
 
-
-
 If you want, I can generate:
+
 ✔ HTML version
+
 ✔ Markdown version
+
 ✔ Printable PDF
+
 ✔ A version stored automatically in each repo
+
 ✔ A VS Code snippet pack for all commands
+
+The full updated dev_reference.txt will be inserted here. Please confirm or provide guidance if you'd like changes.)
