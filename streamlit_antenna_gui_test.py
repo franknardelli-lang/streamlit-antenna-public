@@ -111,7 +111,7 @@ def convert_share_url_to_direct(url):
     # Ensure dl=1 parameter
     if 'dropbox.com' in url:
         if 'dl=0' in url:
-            return url.replace('dl=0', 'dl=1')
+            return url.replace('dl=0', 'dl=1', 1)
         elif 'dl=1' not in url:
             separator = '&' if '?' in url else '?'
             return f'{url}{separator}dl=1'
@@ -144,7 +144,7 @@ def download_file_from_url(url, timeout=30):
         
         # Set headers to avoid bot blocking
         headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
         }
         
         # Download the file
@@ -155,9 +155,10 @@ def download_file_from_url(url, timeout=30):
         filename = None
         if 'Content-Disposition' in response.headers:
             content_disp = response.headers['Content-Disposition']
-            filename_match = re.findall(r'filename[^;=\n]*=(([\'"]).*?\2|[^;\n]*)', content_disp)
+            # Match filename with optional quotes: filename="file.csv" or filename=file.csv
+            filename_match = re.search(r'filename[^;=\n]*=([\'"]?)([^;\n]*?)\1', content_disp)
             if filename_match:
-                filename = filename_match[0][0].strip('\'"')
+                filename = filename_match.group(2).strip()
         
         if not filename:
             # Try to extract from URL path
@@ -425,10 +426,9 @@ def main():
                     # Display results
                     if success_count > 0:
                         st.success(f"✅ Successfully loaded {success_count} file(s)")
-                        if success_count > 0:
-                            with st.expander("📄 Loaded files", expanded=False):
-                                for f in url_files:
-                                    st.write(f"• {f.name}")
+                        with st.expander("📄 Loaded files", expanded=False):
+                            for f in url_files:
+                                st.write(f"• {f.name}")
                     
                     if error_messages:
                         with st.expander(f"⚠️ {len(error_messages)} error(s)", expanded=True):
