@@ -386,9 +386,124 @@ def main():
     The app will process the data and provide downloadable results.
     """)
 
-    # Initialize session state for results
+    # Initialize session state for results and files
     if 'results' not in st.session_state:
         st.session_state.results = None
+    if 'url_files' not in st.session_state:
+        st.session_state.url_files = []
+    if 'zip_files' not in st.session_state:
+        st.session_state.zip_files = []
+
+    # Sidebar with file loading options
+    with st.sidebar:
+        st.header("📁 File Loading")
+        
+        # URL-based file loading
+        with st.expander("🔗 Load from URLs"):
+            st.markdown("""
+            **Paste URLs to raw/unprocessed CSV files** (one per line)
+            
+            Supported services:
+            - Google Drive share links
+            - Dropbox public links  
+            - OneDrive share links
+            - Direct HTTP/HTTPS URLs to CSV files
+            
+            **Example:**
+            ```
+            https://drive.google.com/file/d/FILE_ID/view
+            https://www.dropbox.com/s/FILE_PATH?dl=0
+            https://example.com/data.csv
+            ```
+            """)
+            
+            url_input = st.text_area(
+                "URLs (one per line)",
+                height=150,
+                placeholder="https://drive.google.com/file/d/YOUR_FILE_ID/view\nhttps://www.dropbox.com/s/YOUR_FILE?dl=0"
+            )
+            
+            load_urls_button = st.button("📥 Load Files from URLs", type="primary")
+        
+        # ZIP URL loading
+        with st.expander("📦 Load CSV files from ZIP"):
+            st.markdown("""
+            **Paste URL to a ZIP file containing raw/unprocessed CSV files**
+            
+            The app will:
+            - Download the ZIP file
+            - Extract all CSV files
+            - Make them available for processing
+            
+            **Example:**
+            ```
+            https://example.com/data.zip
+            https://drive.google.com/file/d/FILE_ID/view
+            ```
+            """)
+            
+            zip_url_input = st.text_input(
+                "ZIP File URL",
+                placeholder="https://example.com/antenna_data.zip"
+            )
+            
+            load_zip_button = st.button("📥 Load ZIP File", type="primary")
+
+    # Process URL downloads
+    if load_urls_button and url_input:
+        urls = [url.strip() for url in url_input.split('\n') if url.strip()]
+
+        if urls:
+            with st.spinner(f"Downloading {len(urls)} file(s)..."):
+                success_count = 0
+                error_messages = []
+                url_files_temp = []
+
+                for url in urls:
+                    # Basic URL validation
+                    if not url.startswith(('http://', 'https://')):
+                        error_messages.append(f"⚠️ Invalid URL format: {url[:50]}...")
+                        continue
+
+                    content, filename, error = download_file_from_url(url)
+
+                    if error:
+                        error_messages.append(f"❌ {url[:50]}...: {error}")
+                    elif content and filename:
+                        url_files_temp.append(UploadedFileFromURL(content, filename))
+                        success_count += 1
+
+                # Store in session state
+                if success_count > 0:
+                    st.session_state.url_files = url_files_temp
+                    st.success(f"✅ Successfully loaded {success_count} file(s)")
+                    with st.expander("📄 Loaded files", expanded=False):
+                        for f in st.session_state.url_files:
+                            st.write(f"• {f.name}")
+
+                if error_messages:
+                    with st.expander(f"⚠️ {len(error_messages)} error(s)", expanded=True):
+                        for msg in error_messages:
+                            st.error(msg)
+
+    # Process ZIP downloads
+    if load_zip_button and zip_url_input:
+        with st.spinner("Downloading and extracting ZIP file..."):
+            extracted_files, error = download_and_extract_zip(zip_url_input)
+
+            if error:
+                st.error(f"❌ Failed to load ZIP: {error}")
+            elif extracted_files:
+                # Store in session state
+                st.session_state.zip_files = extracted_files
+                st.success(f"✅ Successfully extracted {len(extracted_files)} CSV file(s) from ZIP")
+                with st.expander("📄 Extracted files", expanded=False):
+                    for f in st.session_state.zip_files:
+                        st.write(f"• {f.name}")
+
+    # Get files from session state
+    url_files = st.session_state.url_files
+    zip_files = st.session_state.zip_files
 
     # Sidebar with file loading options
     with st.sidebar:
