@@ -99,17 +99,23 @@ def convert_share_url_to_direct(url):
     Returns:
         str: Direct download URL
     """
+    # Parse the URL to safely check the domain
+    from urllib.parse import urlparse
+    parsed = urlparse(url)
+    domain = parsed.netloc.lower()
+    
     # Google Drive conversion
     # Pattern: https://drive.google.com/file/d/FILE_ID/view → https://drive.google.com/uc?export=download&id=FILE_ID
-    gdrive_pattern = r'https://drive\.google\.com/file/d/([a-zA-Z0-9_-]+)'
-    match = re.search(gdrive_pattern, url)
-    if match:
-        file_id = match.group(1)
-        return f'https://drive.google.com/uc?export=download&id={file_id}'
+    if domain in ('drive.google.com', 'www.drive.google.com'):
+        gdrive_pattern = r'https://drive\.google\.com/file/d/([a-zA-Z0-9_-]+)'
+        match = re.search(gdrive_pattern, url)
+        if match:
+            file_id = match.group(1)
+            return f'https://drive.google.com/uc?export=download&id={file_id}'
     
     # Dropbox conversion
     # Ensure dl=1 parameter
-    if 'dropbox.com' in url:
+    if domain in ('www.dropbox.com', 'dropbox.com'):
         if 'dl=0' in url:
             return url.replace('dl=0', 'dl=1', 1)
         elif 'dl=1' not in url:
@@ -118,7 +124,7 @@ def convert_share_url_to_direct(url):
     
     # OneDrive conversion
     # Pattern: Convert share link to download link
-    if 'onedrive.live.com' in url or '1drv.ms' in url:
+    if domain in ('onedrive.live.com', '1drv.ms'):
         # OneDrive share links can be converted by replacing 'view' with 'download'
         return url.replace('view.aspx', 'download.aspx')
     
@@ -139,6 +145,27 @@ def download_file_from_url(url, timeout=30):
         tuple: (BytesIO object, original filename or None, error message or None)
     """
     try:
+        # Validate URL scheme (only allow http and https)
+        from urllib.parse import urlparse
+        parsed = urlparse(url)
+        if parsed.scheme not in ('http', 'https'):
+            return None, None, f"Invalid URL scheme: {parsed.scheme}. Only HTTP and HTTPS are allowed."
+        
+        # Basic validation to prevent SSRF attacks on private networks
+        # Block localhost and private IP ranges
+        hostname = parsed.hostname
+        if hostname:
+            hostname_lower = hostname.lower()
+            # Block localhost
+            if hostname_lower in ('localhost', '127.0.0.1', '::1'):
+                return None, None, "Access to localhost is not allowed for security reasons."
+            # Block private IP ranges (basic check)
+            if hostname_lower.startswith(('10.', '172.16.', '172.17.', '172.18.', '172.19.', 
+                                          '172.20.', '172.21.', '172.22.', '172.23.', '172.24.',
+                                          '172.25.', '172.26.', '172.27.', '172.28.', '172.29.',
+                                          '172.30.', '172.31.', '192.168.')):
+                return None, None, "Access to private IP addresses is not allowed for security reasons."
+        
         # Convert sharing URLs to direct download URLs
         direct_url = convert_share_url_to_direct(url)
         
