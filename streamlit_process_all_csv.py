@@ -386,9 +386,13 @@ def main():
     The app will process the data and provide downloadable results.
     """)
 
-    # Initialize session state for results
+    # Initialize session state for results and files
     if 'results' not in st.session_state:
         st.session_state.results = None
+    if 'url_files' not in st.session_state:
+        st.session_state.url_files = []
+    if 'zip_files' not in st.session_state:
+        st.session_state.zip_files = []
 
     # Sidebar with file loading options
     with st.sidebar:
@@ -446,55 +450,60 @@ def main():
             load_zip_button = st.button("📥 Load ZIP File", type="primary")
 
     # Process URL downloads
-    url_files = []
     if load_urls_button and url_input:
         urls = [url.strip() for url in url_input.split('\n') if url.strip()]
-        
+
         if urls:
             with st.spinner(f"Downloading {len(urls)} file(s)..."):
                 success_count = 0
                 error_messages = []
-                
+                url_files_temp = []
+
                 for url in urls:
                     # Basic URL validation
                     if not url.startswith(('http://', 'https://')):
                         error_messages.append(f"⚠️ Invalid URL format: {url[:50]}...")
                         continue
-                    
+
                     content, filename, error = download_file_from_url(url)
-                    
+
                     if error:
                         error_messages.append(f"❌ {url[:50]}...: {error}")
                     elif content and filename:
-                        url_files.append(UploadedFileFromURL(content, filename))
+                        url_files_temp.append(UploadedFileFromURL(content, filename))
                         success_count += 1
-                
-                # Display results
+
+                # Store in session state
                 if success_count > 0:
+                    st.session_state.url_files = url_files_temp
                     st.success(f"✅ Successfully loaded {success_count} file(s)")
                     with st.expander("📄 Loaded files", expanded=False):
-                        for f in url_files:
+                        for f in st.session_state.url_files:
                             st.write(f"• {f.name}")
-                
+
                 if error_messages:
                     with st.expander(f"⚠️ {len(error_messages)} error(s)", expanded=True):
                         for msg in error_messages:
                             st.error(msg)
-    
+
     # Process ZIP downloads
-    zip_files = []
     if load_zip_button and zip_url_input:
         with st.spinner("Downloading and extracting ZIP file..."):
             extracted_files, error = download_and_extract_zip(zip_url_input)
-            
+
             if error:
                 st.error(f"❌ Failed to load ZIP: {error}")
             elif extracted_files:
-                zip_files = extracted_files
-                st.success(f"✅ Successfully extracted {len(zip_files)} CSV file(s) from ZIP")
+                # Store in session state
+                st.session_state.zip_files = extracted_files
+                st.success(f"✅ Successfully extracted {len(extracted_files)} CSV file(s) from ZIP")
                 with st.expander("📄 Extracted files", expanded=False):
-                    for f in zip_files:
+                    for f in st.session_state.zip_files:
                         st.write(f"• {f.name}")
+
+    # Get files from session state
+    url_files = st.session_state.url_files
+    zip_files = st.session_state.zip_files
 
     # File uploader
     uploaded_files = st.file_uploader(
