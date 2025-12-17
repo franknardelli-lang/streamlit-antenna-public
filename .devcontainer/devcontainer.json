@@ -1,33 +1,60 @@
 {
-  "name": "Python 3",
-  // Or use a Dockerfile or Docker Compose file. More info: https://containers.dev/guide/dockerfile
+  "name": "Streamlit Antenna Development",
   "image": "mcr.microsoft.com/devcontainers/python:1-3.11-bookworm",
+
+  // Install dotfiles and Python dependencies after container is created
+  "postCreateCommand": "bash -c 'if [ ! -d ~/.dotfiles ]; then git clone https://github.com/franknardelli-lang/dotfiles ~/.dotfiles && cd ~/.dotfiles && SKIP_CHSH=1 bash install.sh; fi' && pip3 install -r requirements.txt",
+
   "customizations": {
-    "codespaces": {
-      "openFiles": [
-        "README.md",
-        "streamlit_antenna_gui_test.py"
-      ]
-    },
     "vscode": {
-      "settings": {},
+      "settings": {
+        "python.defaultInterpreterPath": "/usr/local/bin/python",
+        "python.linting.enabled": true,
+        "python.linting.pylintEnabled": false,
+        "python.formatting.provider": "black",
+        "python.analysis.typeCheckingMode": "basic",
+        "editor.formatOnSave": true,
+        "editor.codeActionsOnSave": {
+          "source.organizeImports": "explicit"
+        },
+        "files.exclude": {
+          "**/__pycache__": true,
+          "**/*.pyc": true
+        },
+        "terminal.integrated.defaultProfile.linux": "zsh"
+      },
       "extensions": [
+        // AI Assistants
+        "anthropic.claude-code",
+        "github.copilot",
+        "github.copilot-chat",
+
+        // Python Development
         "ms-python.python",
-        "ms-python.vscode-pylance"
+        "ms-python.vscode-pylance",
+        "ms-python.black-formatter",
+        "ms-python.autopep8",
+        "ms-python.isort",
+        "ms-python.debugpy",
+        "ms-python.vscode-python-envs",
+        "njpwerner.autodocstring",
+
+        // Git & GitHub
+        "eamodio.gitlens",
+        "github.vscode-pull-request-github",
+
+        // Linters
+        "dbaeumer.vscode-eslint"
       ]
     }
   },
-  "updateContentCommand": "[ -f packages.txt ] && sudo apt update && sudo apt upgrade -y && sudo xargs apt install -y <packages.txt; [ -f requirements.txt ] && pip3 install --user -r requirements.txt; pip3 install --user streamlit; echo '✅ Packages installed and Requirements met'",
-  "postAttachCommand": {
-    "server": "streamlit run streamlit_antenna_gui_test.py --server.enableCORS false --server.enableXsrfProtection false"
-  },
+
+  // Port configuration for Streamlit
+  "forwardPorts": [8501],
   "portsAttributes": {
     "8501": {
-      "label": "Application",
-      "onAutoForward": "openPreview"
+      "label": "Streamlit App",
+      "onAutoForward": "notify"
     }
-  },
-  "forwardPorts": [
-    8501
-  ]
+  }
 }
