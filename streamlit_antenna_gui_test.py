@@ -59,6 +59,10 @@ class UploadedFileFromURL:
         """
         self._content = content
         self.name = name
+        # Cache the content for pickling/hashing
+        self._content.seek(0)
+        self._bytes = self._content.getvalue()
+        self._content.seek(0)
     
     def seek(self, position):
         """Seek to position in file"""
@@ -71,6 +75,18 @@ class UploadedFileFromURL:
     def getvalue(self):
         """Get entire file content"""
         return self._content.getvalue()
+    
+    def __reduce__(self):
+        """Support for pickling (required for Streamlit caching)"""
+        return (
+            _reconstruct_uploaded_file,
+            (self._bytes, self.name)
+        )
+
+
+def _reconstruct_uploaded_file(content_bytes, name):
+    """Reconstruct UploadedFileFromURL from pickled state"""
+    return UploadedFileFromURL(io.BytesIO(content_bytes), name)
 
 
 def convert_share_url_to_direct(url):
@@ -250,14 +266,17 @@ def process_dataset(df, iso_power_dBm):
 
 
 @st.cache_data
-def load_and_process_data(uploaded_files, iso_power_dBm):
+def load_and_process_data(_uploaded_files, iso_power_dBm):
     """
     Load uploaded CSV files and process them into a dictionary of datasets.
+    
+    Note: The underscore prefix in _uploaded_files tells Streamlit not to hash this parameter,
+    which is necessary because our UploadedFileFromURL objects cannot be hashed by Streamlit's caching system.
     """
     data_dict = {}
     skipped_files = []
 
-    for uploaded_file in uploaded_files:
+    for uploaded_file in _uploaded_files:
         filename = uploaded_file.name
         if filename.endswith('_processed.csv'):
             try:
