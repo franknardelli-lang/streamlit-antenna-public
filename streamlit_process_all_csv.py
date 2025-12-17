@@ -94,7 +94,6 @@ def convert_share_url_to_direct(url):
         str: Direct download URL
     """
     # Parse the URL to safely check the domain
-    from urllib.parse import urlparse
     parsed = urlparse(url)
     domain = parsed.netloc.lower()
     
@@ -140,7 +139,6 @@ def download_file_from_url(url, timeout=30):
     """
     try:
         # Validate URL scheme (only allow http and https)
-        from urllib.parse import urlparse
         parsed = urlparse(url)
         if parsed.scheme not in ('http', 'https'):
             return None, None, f"Invalid URL scheme: {parsed.scheme}. Only HTTP and HTTPS are allowed."
