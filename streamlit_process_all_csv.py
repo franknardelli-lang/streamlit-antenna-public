@@ -5,7 +5,7 @@ This is a Streamlit web application for processing antenna measurement CSV files
 containing two sweep datasets representing electric field strength (in dBµV/m) versus angle.
 
 Key Functionality:
-- Web-based interface for uploading CSV files.
+- Web-based interface for uploading CSV files or loading from URLs.
 - Processes multiple CSV files at once.
 - Reads each CSV file assuming at least two columns: angle and field strength.
 - Detects the "sweep break" where the angle data resets (angle decreases).
@@ -20,19 +20,260 @@ Key Functionality:
 
 Usage:
 - Run: streamlit run streamlit_process_all_csv.py
-- Upload CSV files through the web interface.
+- Upload CSV files through the web interface or load from URLs.
 - Download processed results.
 
 Dependencies:
-- streamlit, numpy, pandas, scipy
+- streamlit, numpy, pandas, scipy, requests
 """
 
 import io
+import re
 import zipfile
 import numpy as np
 import pandas as pd
 from scipy.interpolate import interp1d
 import streamlit as st
+import requests
+from urllib.parse import urlparse, parse_qs
+
+
+# --- URL File Loading Classes and Functions ---
+
+class UploadedFileFromURL:
+    """Wrapper to make BytesIO compatible with Streamlit's UploadedFile interface"""
+    
+    def __init__(self, content, name):
+        """
+        Initialize wrapper with file content and name.
+        
+        Args:
+            content: BytesIO object containing file data
+            name: Filename string
+        """
+        self._content = content
+        self.name = name
+        # Cache the content for pickling/hashing
+        self._content.seek(0)
+        self._bytes = self._content.getvalue()
+        self._content.seek(0)
+    
+    def seek(self, position):
+        """Seek to position in file"""
+        return self._content.seek(position)
+    
+    def read(self, size=-1):
+        """Read file content"""
+        return self._content.read(size)
+    
+    def getvalue(self):
+        """Get entire file content"""
+        return self._content.getvalue()
+    
+    def __reduce__(self):
+        """Support for pickling (required for Streamlit caching)"""
+        return (
+            _reconstruct_uploaded_file,
+            (self._bytes, self.name)
+        )
+
+
+def _reconstruct_uploaded_file(content_bytes, name):
+    """Reconstruct UploadedFileFromURL from pickled state"""
+    return UploadedFileFromURL(io.BytesIO(content_bytes), name)
+
+
+def convert_share_url_to_direct(url):
+    """
+    Convert sharing URLs from Google Drive, Dropbox, and OneDrive to direct download URLs.
+    
+    Args:
+        url: The sharing URL to convert
+        
+    Returns:
+        str: Direct download URL
+    """
+    # Parse the URL to safely check the domain
+    from urllib.parse import urlparse
+    parsed = urlparse(url)
+    domain = parsed.netloc.lower()
+    
+    # Google Drive conversion
+    # Pattern: https://drive.google.com/file/d/FILE_ID/view → https://drive.google.com/uc?export=download&id=FILE_ID
+    if domain in ('drive.google.com', 'www.drive.google.com'):
+        gdrive_pattern = r'https://drive\.google\.com/file/d/([a-zA-Z0-9_-]+)'
+        match = re.search(gdrive_pattern, url)
+        if match:
+            file_id = match.group(1)
+            return f'https://drive.google.com/uc?export=download&id={file_id}'
+    
+    # Dropbox conversion
+    # Ensure dl=1 parameter
+    if domain in ('www.dropbox.com', 'dropbox.com'):
+        if 'dl=0' in url:
+            return url.replace('dl=0', 'dl=1', 1)
+        elif 'dl=1' not in url:
+            separator = '&' if '?' in url else '?'
+            return f'{url}{separator}dl=1'
+    
+    # OneDrive conversion
+    # Pattern: Convert share link to download link
+    if domain in ('onedrive.live.com', '1drv.ms'):
+        # OneDrive share links can be converted by replacing 'view' with 'download'
+        return url.replace('view.aspx', 'download.aspx')
+    
+    # Return original URL if no conversion needed
+    return url
+
+
+def download_file_from_url(url, timeout=30):
+    """
+    Download a file from a URL and return it as a file-like object.
+    Converts common sharing URLs to direct download URLs.
+    
+    Args:
+        url: The URL to download from
+        timeout: Request timeout in seconds
+        
+    Returns:
+        tuple: (BytesIO object, original filename or None, error message or None)
+    """
+    try:
+        # Validate URL scheme (only allow http and https)
+        from urllib.parse import urlparse
+        parsed = urlparse(url)
+        if parsed.scheme not in ('http', 'https'):
+            return None, None, f"Invalid URL scheme: {parsed.scheme}. Only HTTP and HTTPS are allowed."
+        
+        # Basic validation to prevent SSRF attacks on private networks
+        # Block localhost and private IP ranges
+        hostname = parsed.hostname
+        if hostname:
+            hostname_lower = hostname.lower()
+            # Block localhost
+            if hostname_lower in ('localhost', '127.0.0.1', '::1'):
+                return None, None, "Access to localhost is not allowed for security reasons."
+            # Block private IP ranges (basic check)
+            if hostname_lower.startswith(('10.', '172.16.', '172.17.', '172.18.', '172.19.', 
+                                          '172.20.', '172.21.', '172.22.', '172.23.', '172.24.',
+                                          '172.25.', '172.26.', '172.27.', '172.28.', '172.29.',
+                                          '172.30.', '172.31.', '192.168.')):
+                return None, None, "Access to private IP addresses is not allowed for security reasons."
+        
+        # Convert sharing URLs to direct download URLs
+        direct_url = convert_share_url_to_direct(url)
+        
+        # Set headers to avoid bot blocking
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        }
+        
+        # Download the file
+        response = requests.get(direct_url, headers=headers, timeout=timeout, allow_redirects=True)
+        response.raise_for_status()
+        
+        # Extract filename from Content-Disposition header or URL
+        filename = None
+        if 'Content-Disposition' in response.headers:
+            content_disp = response.headers['Content-Disposition']
+            # Match filename with optional quotes: filename="file.csv" or filename=file.csv
+            filename_match = re.search(r'filename[^;=\n]*=([\'"]?)([^;\n]*?)\1', content_disp)
+            if filename_match:
+                filename = filename_match.group(2).strip()
+        
+        if not filename:
+            # Try to extract from URL path
+            parsed_url = urlparse(direct_url)
+            path = parsed_url.path
+            if path:
+                filename = path.split('/')[-1]
+            
+        if not filename or not filename.endswith('.csv'):
+            filename = 'downloaded_file.csv'
+        
+        # Create BytesIO object from content
+        file_content = io.BytesIO(response.content)
+        
+        return file_content, filename, None
+        
+    except requests.exceptions.Timeout:
+        return None, None, f"Timeout: Server took longer than {timeout} seconds to respond"
+    except requests.exceptions.ConnectionError:
+        return None, None, "Connection Error: Could not connect to the server"
+    except requests.exceptions.HTTPError as e:
+        if e.response.status_code == 404:
+            return None, None, "Error 404: File not found"
+        elif e.response.status_code == 403:
+            return None, None, "Error 403: Access forbidden - file may not be publicly accessible"
+        else:
+            return None, None, f"HTTP Error {e.response.status_code}: {str(e)}"
+    except Exception as e:
+        return None, None, f"Unexpected error: {str(e)}"
+
+
+def download_and_extract_zip(zip_url, timeout=30):
+    """
+    Download a ZIP file from a URL and extract all CSV files.
+    
+    Args:
+        zip_url: URL to the ZIP file
+        timeout: Request timeout in seconds
+        
+    Returns:
+        tuple: (list of UploadedFileFromURL objects, error message or None)
+    """
+    try:
+        # Download the ZIP file
+        content, filename, error = download_file_from_url(zip_url, timeout)
+        
+        if error:
+            return [], error
+        
+        if not content:
+            return [], "Failed to download ZIP file"
+        
+        # Extract CSV files from ZIP
+        extracted_files = []
+        
+        try:
+            with zipfile.ZipFile(content, 'r') as zip_ref:
+                # Get list of all files in the ZIP
+                file_list = zip_ref.namelist()
+                
+                # Filter for CSV files (excluding __MACOSX/)
+                csv_files = [f for f in file_list if f.endswith('.csv') and not f.startswith('__MACOSX/')]
+                
+                if not csv_files:
+                    return [], "No CSV files found in ZIP"
+                
+                # Extract each CSV file
+                for csv_filename in csv_files:
+                    try:
+                        file_data = zip_ref.read(csv_filename)
+                        file_obj = io.BytesIO(file_data)
+                        
+                        # Get just the filename without path
+                        name_only = csv_filename.split('/')[-1]
+                        
+                        # Create UploadedFileFromURL wrapper
+                        uploaded_file = UploadedFileFromURL(file_obj, name_only)
+                        extracted_files.append(uploaded_file)
+                    except Exception as e:
+                        # Skip files that can't be extracted
+                        continue
+                
+                if not extracted_files:
+                    return [], "No valid CSV files could be extracted from ZIP"
+                
+                return extracted_files, None
+                
+        except zipfile.BadZipFile:
+            return [], "Invalid ZIP file format"
+        except Exception as e:
+            return [], f"Error extracting ZIP: {str(e)}"
+    
+    except Exception as e:
+        return [], f"Unexpected error: {str(e)}"
 
 
 def process_csv_data(df, filename):
@@ -151,6 +392,112 @@ def main():
     if 'results' not in st.session_state:
         st.session_state.results = None
 
+    # Sidebar with file loading options
+    with st.sidebar:
+        st.header("📁 File Loading")
+        
+        # URL-based file loading
+        with st.expander("🔗 Load from URLs"):
+            st.markdown("""
+            **Paste URLs to raw/unprocessed CSV files** (one per line)
+            
+            Supported services:
+            - Google Drive share links
+            - Dropbox public links  
+            - OneDrive share links
+            - Direct HTTP/HTTPS URLs to CSV files
+            
+            **Example:**
+            ```
+            https://drive.google.com/file/d/FILE_ID/view
+            https://www.dropbox.com/s/FILE_PATH?dl=0
+            https://example.com/data.csv
+            ```
+            """)
+            
+            url_input = st.text_area(
+                "URLs (one per line)",
+                height=150,
+                placeholder="https://drive.google.com/file/d/YOUR_FILE_ID/view\nhttps://www.dropbox.com/s/YOUR_FILE?dl=0"
+            )
+            
+            load_urls_button = st.button("📥 Load Files from URLs", type="primary")
+        
+        # ZIP URL loading
+        with st.expander("📦 Load CSV files from ZIP"):
+            st.markdown("""
+            **Paste URL to a ZIP file containing raw/unprocessed CSV files**
+            
+            The app will:
+            - Download the ZIP file
+            - Extract all CSV files
+            - Make them available for processing
+            
+            **Example:**
+            ```
+            https://example.com/data.zip
+            https://drive.google.com/file/d/FILE_ID/view
+            ```
+            """)
+            
+            zip_url_input = st.text_input(
+                "ZIP File URL",
+                placeholder="https://example.com/antenna_data.zip"
+            )
+            
+            load_zip_button = st.button("📥 Load ZIP File", type="primary")
+
+    # Process URL downloads
+    url_files = []
+    if load_urls_button and url_input:
+        urls = [url.strip() for url in url_input.split('\n') if url.strip()]
+        
+        if urls:
+            with st.spinner(f"Downloading {len(urls)} file(s)..."):
+                success_count = 0
+                error_messages = []
+                
+                for url in urls:
+                    # Basic URL validation
+                    if not url.startswith(('http://', 'https://')):
+                        error_messages.append(f"⚠️ Invalid URL format: {url[:50]}...")
+                        continue
+                    
+                    content, filename, error = download_file_from_url(url)
+                    
+                    if error:
+                        error_messages.append(f"❌ {url[:50]}...: {error}")
+                    elif content and filename:
+                        url_files.append(UploadedFileFromURL(content, filename))
+                        success_count += 1
+                
+                # Display results
+                if success_count > 0:
+                    st.success(f"✅ Successfully loaded {success_count} file(s)")
+                    with st.expander("📄 Loaded files", expanded=False):
+                        for f in url_files:
+                            st.write(f"• {f.name}")
+                
+                if error_messages:
+                    with st.expander(f"⚠️ {len(error_messages)} error(s)", expanded=True):
+                        for msg in error_messages:
+                            st.error(msg)
+    
+    # Process ZIP downloads
+    zip_files = []
+    if load_zip_button and zip_url_input:
+        with st.spinner("Downloading and extracting ZIP file..."):
+            extracted_files, error = download_and_extract_zip(zip_url_input)
+            
+            if error:
+                st.error(f"❌ Failed to load ZIP: {error}")
+            elif extracted_files:
+                zip_files = extracted_files
+                st.success(f"✅ Successfully extracted {len(zip_files)} CSV file(s) from ZIP")
+                with st.expander("📄 Extracted files", expanded=False):
+                    for f in zip_files:
+                        st.write(f"• {f.name}")
+
     # File uploader
     uploaded_files = st.file_uploader(
         "Choose CSV files",
@@ -159,8 +506,13 @@ def main():
         help="Upload one or more CSV files with antenna sweep data"
     )
 
-    if uploaded_files:
-        st.write(f"### Uploaded {len(uploaded_files)} file(s)")
+    # Combine uploaded files, URL files, and ZIP files
+    all_files = list(uploaded_files) if uploaded_files else []
+    all_files.extend(url_files)
+    all_files.extend(zip_files)
+
+    if all_files:
+        st.write(f"### Loaded {len(all_files)} file(s) total")
 
         # Process button
         if st.button("Process All Files", type="primary"):
@@ -170,7 +522,7 @@ def main():
             progress_bar = st.progress(0)
             status_text = st.empty()
 
-            for idx, uploaded_file in enumerate(uploaded_files):
+            for idx, uploaded_file in enumerate(all_files):
                 status_text.text(f"Processing {uploaded_file.name}...")
 
                 # Read the CSV
@@ -186,7 +538,7 @@ def main():
                 }
 
                 # Update progress
-                progress_bar.progress((idx + 1) / len(uploaded_files))
+                progress_bar.progress((idx + 1) / len(all_files))
 
             status_text.text("Processing complete!")
 
@@ -247,6 +599,7 @@ def main():
 
     # Sidebar with information
     with st.sidebar:
+        st.markdown("---")
         st.header("ℹ️ About")
         st.markdown("""
         This tool processes antenna measurement CSV files by:
@@ -276,6 +629,7 @@ pandas
 numpy
 scipy
 streamlit
+requests
         """)
 
 
