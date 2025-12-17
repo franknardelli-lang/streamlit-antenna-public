@@ -6,6 +6,7 @@ antenna radiation pattern data from processed CSV files.
 
 Key Features:
 - Web-based interface for uploading multiple processed CSV files.
+- Alternative URL-based file loading for users behind restrictive firewalls.
 - Caches processed data to avoid recalculations on UI updates.
 - Parses each CSV into a pandas DataFrame and calculates key antenna metrics.
 - Multi-select widget to choose one or more datasets to plot.
@@ -26,19 +27,195 @@ File Naming Convention:
 - Processes files ending in '_processed.csv'
 
 Dependencies:
-- streamlit, numpy, pandas, matplotlib
+- streamlit, numpy, pandas, matplotlib, requests
 
 Usage:
 - Run: streamlit run streamlit_antenna_gui_test.py
-- Upload processed CSV files through the web interface
+- Upload processed CSV files through the web interface or load from URLs
 - Select variables, enter parameters, and view/download plots and data
 """
 
 import io
+import re
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import streamlit as st
+import requests
+from urllib.parse import urlparse, parse_qs
+
+# --- URL File Loading Classes and Functions ---
+
+class UploadedFileFromURL:
+    """Wrapper to make BytesIO compatible with Streamlit's UploadedFile interface"""
+    
+    def __init__(self, content, name):
+        """
+        Initialize wrapper with file content and name.
+        
+        Args:
+            content: BytesIO object containing file data
+            name: Filename string
+        """
+        self._content = content
+        self.name = name
+        # Cache the content for pickling/hashing
+        self._content.seek(0)
+        self._bytes = self._content.getvalue()
+        self._content.seek(0)
+    
+    def seek(self, position):
+        """Seek to position in file"""
+        return self._content.seek(position)
+    
+    def read(self, size=-1):
+        """Read file content"""
+        return self._content.read(size)
+    
+    def getvalue(self):
+        """Get entire file content"""
+        return self._content.getvalue()
+    
+    def __reduce__(self):
+        """Support for pickling (required for Streamlit caching)"""
+        return (
+            _reconstruct_uploaded_file,
+            (self._bytes, self.name)
+        )
+
+
+def _reconstruct_uploaded_file(content_bytes, name):
+    """Reconstruct UploadedFileFromURL from pickled state"""
+    return UploadedFileFromURL(io.BytesIO(content_bytes), name)
+
+
+def convert_share_url_to_direct(url):
+    """
+    Convert sharing URLs from Google Drive, Dropbox, and OneDrive to direct download URLs.
+    
+    Args:
+        url: The sharing URL to convert
+        
+    Returns:
+        str: Direct download URL
+    """
+    # Parse the URL to safely check the domain
+    from urllib.parse import urlparse
+    parsed = urlparse(url)
+    domain = parsed.netloc.lower()
+    
+    # Google Drive conversion
+    # Pattern: https://drive.google.com/file/d/FILE_ID/view → https://drive.google.com/uc?export=download&id=FILE_ID
+    if domain in ('drive.google.com', 'www.drive.google.com'):
+        gdrive_pattern = r'https://drive\.google\.com/file/d/([a-zA-Z0-9_-]+)'
+        match = re.search(gdrive_pattern, url)
+        if match:
+            file_id = match.group(1)
+            return f'https://drive.google.com/uc?export=download&id={file_id}'
+    
+    # Dropbox conversion
+    # Ensure dl=1 parameter
+    if domain in ('www.dropbox.com', 'dropbox.com'):
+        if 'dl=0' in url:
+            return url.replace('dl=0', 'dl=1', 1)
+        elif 'dl=1' not in url:
+            separator = '&' if '?' in url else '?'
+            return f'{url}{separator}dl=1'
+    
+    # OneDrive conversion
+    # Pattern: Convert share link to download link
+    if domain in ('onedrive.live.com', '1drv.ms'):
+        # OneDrive share links can be converted by replacing 'view' with 'download'
+        return url.replace('view.aspx', 'download.aspx')
+    
+    # Return original URL if no conversion needed
+    return url
+
+
+def download_file_from_url(url, timeout=30):
+    """
+    Download a file from a URL and return it as a file-like object.
+    Converts common sharing URLs to direct download URLs.
+    
+    Args:
+        url: The URL to download from
+        timeout: Request timeout in seconds
+        
+    Returns:
+        tuple: (BytesIO object, original filename or None, error message or None)
+    """
+    try:
+        # Validate URL scheme (only allow http and https)
+        from urllib.parse import urlparse
+        parsed = urlparse(url)
+        if parsed.scheme not in ('http', 'https'):
+            return None, None, f"Invalid URL scheme: {parsed.scheme}. Only HTTP and HTTPS are allowed."
+        
+        # Basic validation to prevent SSRF attacks on private networks
+        # Block localhost and private IP ranges
+        hostname = parsed.hostname
+        if hostname:
+            hostname_lower = hostname.lower()
+            # Block localhost
+            if hostname_lower in ('localhost', '127.0.0.1', '::1'):
+                return None, None, "Access to localhost is not allowed for security reasons."
+            # Block private IP ranges (basic check)
+            if hostname_lower.startswith(('10.', '172.16.', '172.17.', '172.18.', '172.19.', 
+                                          '172.20.', '172.21.', '172.22.', '172.23.', '172.24.',
+                                          '172.25.', '172.26.', '172.27.', '172.28.', '172.29.',
+                                          '172.30.', '172.31.', '192.168.')):
+                return None, None, "Access to private IP addresses is not allowed for security reasons."
+        
+        # Convert sharing URLs to direct download URLs
+        direct_url = convert_share_url_to_direct(url)
+        
+        # Set headers to avoid bot blocking
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        }
+        
+        # Download the file
+        response = requests.get(direct_url, headers=headers, timeout=timeout, allow_redirects=True)
+        response.raise_for_status()
+        
+        # Extract filename from Content-Disposition header or URL
+        filename = None
+        if 'Content-Disposition' in response.headers:
+            content_disp = response.headers['Content-Disposition']
+            # Match filename with optional quotes: filename="file.csv" or filename=file.csv
+            filename_match = re.search(r'filename[^;=\n]*=([\'"]?)([^;\n]*?)\1', content_disp)
+            if filename_match:
+                filename = filename_match.group(2).strip()
+        
+        if not filename:
+            # Try to extract from URL path
+            parsed_url = urlparse(direct_url)
+            path = parsed_url.path
+            if path:
+                filename = path.split('/')[-1]
+            
+        if not filename or not filename.endswith('.csv'):
+            filename = 'downloaded_file.csv'
+        
+        # Create BytesIO object from content
+        file_content = io.BytesIO(response.content)
+        
+        return file_content, filename, None
+        
+    except requests.exceptions.Timeout:
+        return None, None, f"Timeout: Server took longer than {timeout} seconds to respond"
+    except requests.exceptions.ConnectionError:
+        return None, None, "Connection Error: Could not connect to the server"
+    except requests.exceptions.HTTPError as e:
+        if e.response.status_code == 404:
+            return None, None, "Error 404: File not found"
+        elif e.response.status_code == 403:
+            return None, None, "Error 403: Access forbidden - file may not be publicly accessible"
+        else:
+            return None, None, f"HTTP Error {e.response.status_code}: {str(e)}"
+    except Exception as e:
+        return None, None, f"Unexpected error: {str(e)}"
+
 
 # --- Data Processing Functions ---
 
@@ -117,14 +294,17 @@ def process_dataset(df, iso_power_dBm):
 
 
 @st.cache_data
-def load_and_process_data(uploaded_files, iso_power_dBm):
+def load_and_process_data(_uploaded_files, iso_power_dBm):
     """
     Load uploaded CSV files and process them into a dictionary of datasets.
+    
+    Note: The underscore prefix in _uploaded_files tells Streamlit not to hash this parameter,
+    which is necessary because our UploadedFileFromURL objects cannot be hashed by Streamlit's caching system.
     """
     data_dict = {}
     skipped_files = []
 
-    for uploaded_file in uploaded_files:
+    for uploaded_file in _uploaded_files:
         filename = uploaded_file.name
         if filename.endswith('_processed.csv'):
             try:
@@ -218,6 +398,69 @@ def main():
     with st.sidebar:
         st.header("📂 Data Upload")
         uploaded_files = st.file_uploader("Upload processed CSV files", type=['csv'], accept_multiple_files=True)
+        
+        # URL-based file loading
+        with st.expander("🔗 Or Load from URLs"):
+            st.markdown("""
+            **Paste URLs to CSV files** (one per line)
+            
+            Supported services:
+            - Google Drive share links
+            - Dropbox public links  
+            - OneDrive share links
+            - Direct HTTP/HTTPS URLs to CSV files
+            
+            **Example:**
+            ```
+            https://drive.google.com/file/d/FILE_ID/view
+            https://www.dropbox.com/s/FILE_PATH?dl=0
+            https://example.com/data.csv
+            ```
+            """)
+            
+            url_input = st.text_area(
+                "URLs (one per line)",
+                height=150,
+                placeholder="https://drive.google.com/file/d/YOUR_FILE_ID/view\nhttps://www.dropbox.com/s/YOUR_FILE?dl=0"
+            )
+            
+            load_urls_button = st.button("📥 Load Files", type="primary")
+        
+        # Process URL downloads
+        url_files = []
+        if load_urls_button and url_input:
+            urls = [url.strip() for url in url_input.split('\n') if url.strip()]
+            
+            if urls:
+                with st.spinner(f"Downloading {len(urls)} file(s)..."):
+                    success_count = 0
+                    error_messages = []
+                    
+                    for url in urls:
+                        # Basic URL validation
+                        if not url.startswith(('http://', 'https://')):
+                            error_messages.append(f"⚠️ Invalid URL format: {url[:50]}...")
+                            continue
+                        
+                        content, filename, error = download_file_from_url(url)
+                        
+                        if error:
+                            error_messages.append(f"❌ {url[:50]}...: {error}")
+                        elif content and filename:
+                            url_files.append(UploadedFileFromURL(content, filename))
+                            success_count += 1
+                    
+                    # Display results
+                    if success_count > 0:
+                        st.success(f"✅ Successfully loaded {success_count} file(s)")
+                        with st.expander("📄 Loaded files", expanded=False):
+                            for f in url_files:
+                                st.write(f"• {f.name}")
+                    
+                    if error_messages:
+                        with st.expander(f"⚠️ {len(error_messages)} error(s)", expanded=True):
+                            for msg in error_messages:
+                                st.error(msg)
 
         st.markdown("---")
         st.header("⚙️ Global Parameters")
@@ -236,19 +479,24 @@ def main():
         fig_height = col2.slider("Height (inches)", 6, 16, 10, 1)
 
     # --- Main Content Area ---
-    if not uploaded_files:
-        st.info("👈 Please upload processed CSV files using the sidebar to get started.")
+    # Combine uploaded files and URL files
+    all_files = list(uploaded_files) if uploaded_files else []
+    all_files.extend(url_files)
+    
+    if not all_files:
+        st.info("👈 Please upload processed CSV files using the sidebar or load from URLs to get started.")
         st.markdown("""
         ### How to Use
         1. **Upload Files**: Use the sidebar to upload one or more `_processed.csv` files.
-        2. **Set Parameters**: Adjust isotropic power and customize the plot.
-        3. **Select Datasets**: Choose which files to visualize from the dropdown.
-        4. **Analyze**: View the interactive plot and detailed statistics in their respective tabs.
-        5. **Download**: Save the plot image or statistics table for your reports.
+        2. **Or Load from URLs**: Expand the URL loader and paste links to publicly accessible CSV files.
+        3. **Set Parameters**: Adjust isotropic power and customize the plot.
+        4. **Select Datasets**: Choose which files to visualize from the dropdown.
+        5. **Analyze**: View the interactive plot and detailed statistics in their respective tabs.
+        6. **Download**: Save the plot image or statistics table for your reports.
         """)
         return
 
-    data_dict, skipped_files = load_and_process_data(tuple(uploaded_files), iso_power)
+    data_dict, skipped_files = load_and_process_data(tuple(all_files), iso_power)
 
     if skipped_files:
         with st.expander(f"⚠️ Skipped {len(skipped_files)} file(s)", expanded=False):
