@@ -37,6 +37,7 @@ Usage:
 
 import io
 import re
+import zipfile
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -215,6 +216,77 @@ def download_file_from_url(url, timeout=30):
             return None, None, f"HTTP Error {e.response.status_code}: {str(e)}"
     except Exception as e:
         return None, None, f"Unexpected error: {str(e)}"
+
+
+def download_and_extract_zip(zip_url, timeout=30):
+    """
+    Download a ZIP file from URL and extract CSV files that match the naming convention.
+
+    Args:
+        zip_url: URL to the ZIP file
+        timeout: Request timeout in seconds
+
+    Returns:
+        tuple: (list of UploadedFileFromURL objects, success_count, error_message or None)
+    """
+    try:
+        # Download the ZIP file using existing function (includes security checks)
+        zip_content, _, error = download_file_from_url(zip_url, timeout)
+
+        if error:
+            return [], 0, error
+
+        if not zip_content:
+            return [], 0, "Failed to download ZIP file"
+
+        # Ensure we're at the start of the BytesIO object
+        zip_content.seek(0)
+
+        # Try to open as ZIP file
+        try:
+            with zipfile.ZipFile(zip_content, 'r') as zip_ref:
+                # Get list of all files in the ZIP
+                file_list = zip_ref.namelist()
+
+                # Filter for valid CSV files ending with '_processed.csv'
+                valid_csv_files = [
+                    f for f in file_list
+                    if f.endswith('_processed.csv') and not f.startswith('__MACOSX/')
+                ]
+
+                if not valid_csv_files:
+                    return [], 0, "No files ending with '_processed.csv' found in ZIP"
+
+                # Extract and wrap each valid CSV file
+                extracted_files = []
+                for filename in valid_csv_files:
+                    try:
+                        # Read the file content from ZIP
+                        file_data = zip_ref.read(filename)
+
+                        # Create BytesIO from the extracted content
+                        file_content = io.BytesIO(file_data)
+
+                        # Get just the filename without directory path
+                        base_filename = filename.split('/')[-1]
+
+                        # Wrap in UploadedFileFromURL for compatibility
+                        uploaded_file = UploadedFileFromURL(file_content, base_filename)
+                        extracted_files.append(uploaded_file)
+
+                    except Exception as e:
+                        # Skip individual files that fail to extract
+                        # This implements the "skip silently" requirement
+                        continue
+
+                success_count = len(extracted_files)
+                return extracted_files, success_count, None
+
+        except zipfile.BadZipFile:
+            return [], 0, "Invalid ZIP file format"
+
+    except Exception as e:
+        return [], 0, f"Unexpected error processing ZIP: {str(e)}"
 
 
 # --- Data Processing Functions ---
@@ -425,7 +497,33 @@ def main():
             )
             
             load_urls_button = st.button("📥 Load Files", type="primary")
-        
+
+        # ZIP file URL loading
+        with st.expander("📦 Or Load from ZIP URL"):
+            st.markdown("""
+            **Load multiple CSV files from a ZIP archive**
+
+            Paste a direct URL to a ZIP file containing processed CSV files.
+            The app will automatically extract and load all files ending with `_processed.csv`.
+
+            Supported services:
+            - Direct HTTP/HTTPS URLs to ZIP files
+            - Google Drive, Dropbox, OneDrive links to ZIP files
+
+            **Example:**
+            ```
+            https://example.com/antenna_data.zip
+            https://drive.google.com/file/d/ZIP_FILE_ID/view
+            ```
+            """)
+
+            zip_url_input = st.text_input(
+                "ZIP File URL",
+                placeholder="https://example.com/data.zip"
+            )
+
+            load_zip_button = st.button("📦 Load ZIP File", type="secondary")
+
         # Process URL downloads
         url_files = []
         if load_urls_button and url_input:
@@ -462,6 +560,37 @@ def main():
                             for msg in error_messages:
                                 st.error(msg)
 
+        # Process ZIP download
+        # Initialize session state for zip_files if not exists
+        if 'zip_files' not in st.session_state:
+            st.session_state.zip_files = []
+
+        if load_zip_button and zip_url_input:
+            url = zip_url_input.strip()
+
+            if url:
+                # Basic URL validation
+                if not url.startswith(('http://', 'https://')):
+                    st.error("⚠️ Invalid URL format. Please use HTTP or HTTPS URLs.")
+                else:
+                    with st.spinner("Downloading and extracting ZIP file..."):
+                        extracted_files, success_count, error = download_and_extract_zip(url)
+
+                        if error:
+                            st.error(f"❌ Error loading ZIP: {error}")
+                        elif success_count > 0:
+                            # Store in session state so it persists across reruns
+                            st.session_state.zip_files = extracted_files
+                            st.success(f"✅ Successfully loaded {success_count} CSV file(s) from ZIP")
+                            with st.expander("📄 Loaded files from ZIP", expanded=False):
+                                for f in st.session_state.zip_files:
+                                    st.write(f"• {f.name}")
+                        else:
+                            st.warning("⚠️ No valid CSV files found in ZIP archive")
+
+        # Get zip_files from session state
+        zip_files = st.session_state.zip_files
+
         st.markdown("---")
         st.header("⚙️ Global Parameters")
         iso_power = st.number_input("Isotropic Power (dBm)", value=0.0, step=0.1, format="%.1f", help="Reference isotropic power for efficiency calculation.")
@@ -479,9 +608,10 @@ def main():
         fig_height = col2.slider("Height (inches)", 6, 16, 10, 1)
 
     # --- Main Content Area ---
-    # Combine uploaded files and URL files
+    # Combine uploaded files, URL files, and ZIP files
     all_files = list(uploaded_files) if uploaded_files else []
     all_files.extend(url_files)
+    all_files.extend(zip_files)
     
     if not all_files:
         st.info("👈 Please upload processed CSV files using the sidebar or load from URLs to get started.")
@@ -510,7 +640,7 @@ def main():
     st.success(f"✅ Loaded and processed {len(data_dict)} dataset(s).")
 
     st.header("📊 Select Datasets to Plot")
-    selected_vars = st.multiselect("Choose one or more datasets", options=list(data_dict.keys()), default=list(data_dict.keys()))
+    selected_vars = st.multiselect("Choose one or more datasets", options=list(data_dict.keys()), default=[])
 
     if not selected_vars:
         st.info("👆 Please select at least one dataset to plot.")
