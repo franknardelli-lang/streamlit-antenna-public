@@ -423,7 +423,7 @@ def upload_to_fileio(df, filename):
         else:
             return None, f"HTTP error {e.response.status_code}: {str(e)}"
     except ValueError as e:
-        return None, "Invalid response from file.io service"
+        return None, f"Invalid response from file.io service: {str(e)}"
     except Exception as e:
         return None, f"Unexpected error: {str(e)}"
 
