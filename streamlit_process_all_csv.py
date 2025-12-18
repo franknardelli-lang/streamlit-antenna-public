@@ -373,57 +373,51 @@ def create_zip_archive(results):
     return zip_buffer.getvalue()
 
 
-def upload_to_fileio(df, filename):
+def upload_to_0x0(data_bytes, filename):
     """
-    Upload a processed CSV file to file.io and return a shareable link.
-    
+    Upload file bytes to 0x0.st and return a shareable link.
+
     Args:
-        df: pandas DataFrame containing processed data
-        filename: Name for the file (should end in .csv)
-    
+        data_bytes: File content as bytes
+        filename: Name for the file
+
     Returns:
         tuple: (url string or None, error message or None)
     """
     try:
-        # Convert DataFrame to CSV bytes
-        csv_buffer = io.StringIO()
-        df.to_csv(csv_buffer, index=False)
-        csv_bytes = csv_buffer.getvalue().encode('utf-8')
-        
-        # Prepare multipart form data
-        files = {'file': (filename, csv_bytes, 'text/csv')}
-        
-        # Upload to file.io with timeout
-        response = requests.post('https://file.io/', files=files, timeout=30)
+        # 0x0.st API - POST multipart form with file
+        files = {
+            'file': (filename, data_bytes, 'application/octet-stream')
+        }
+
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
+
+        url = 'https://0x0.st'
+
+        response = requests.post(url, files=files, headers=headers, timeout=60)
         response.raise_for_status()
-        
-        # Parse response
-        response_data = response.json()
-        
-        # Check if upload was successful
-        if response_data.get('success'):
-            url = response_data.get('link')
-            if url:
-                return url, None
-            else:
-                return None, "Upload succeeded but no download link was provided"
+
+        # 0x0.st returns the download URL as plain text
+        download_url = response.text.strip()
+
+        if download_url and download_url.startswith('https://'):
+            return download_url, None
         else:
-            error_msg = response_data.get('message', 'Unknown error')
-            return None, f"Upload failed: {error_msg}"
-            
+            return None, f"Invalid response from 0x0.st: {response.text[:200]}"
+
     except requests.exceptions.Timeout:
-        return None, "Upload timeout: Server took too long to respond (>30 seconds)"
+        return None, "Upload timeout: Server took too long to respond (>60 seconds)"
     except requests.exceptions.ConnectionError:
-        return None, "Connection error: Could not connect to file.io service"
+        return None, "Connection error: Could not connect to 0x0.st service"
     except requests.exceptions.HTTPError as e:
         if e.response.status_code == 413:
-            return None, "File too large: file.io has size limits for free tier"
+            return None, "File too large: 0x0.st has a 512MB limit"
         elif e.response.status_code == 429:
             return None, "Rate limit exceeded: Please wait a few minutes before trying again"
         else:
             return None, f"HTTP error {e.response.status_code}: {str(e)}"
-    except ValueError as e:
-        return None, f"Invalid response from file.io service: {str(e)}"
     except Exception as e:
         return None, f"Unexpected error: {str(e)}"
 
@@ -617,14 +611,17 @@ def main():
             success_count = sum(1 for r in results.values() if r['success'])
             fail_count = len(results) - success_count
 
-            col1, col2, col3 = st.columns(3)
+            col1, col2 = st.columns(2)
             col1.metric("Successfully Processed", success_count)
             col2.metric("Failed", fail_count)
 
-            # Download All button
+            # Download All and Share All buttons
             if success_count > 0:
-                with col3:
-                    zip_data = create_zip_archive(results)
+                zip_data = create_zip_archive(results)
+
+                col_btn1, col_btn2 = st.columns(2)
+
+                with col_btn1:
                     st.download_button(
                         label=f"📦 Download All ({success_count} files)",
                         data=zip_data,
@@ -632,6 +629,28 @@ def main():
                         mime="application/zip",
                         type="primary"
                     )
+
+                with col_btn2:
+                    if st.button(
+                        f"🔗 Generate Shareable Link for All ({success_count} files)",
+                        key="share_all",
+                        help="Upload ZIP file to 0x0.st and get a shareable download link"
+                    ):
+                        with st.spinner("Uploading ZIP file to 0x0.st..."):
+                            share_url, error = upload_to_0x0(zip_data, "processed_files.zip")
+
+                        if share_url:
+                            st.success("✅ ZIP upload successful!")
+                            st.text_input(
+                                "Shareable Link for ZIP (copy this URL):",
+                                value=share_url,
+                                key="url_all",
+                                help="Copy this URL to share the ZIP file"
+                            )
+                            st.warning("⚠️ This link expires after 100 days")
+                            st.info("💡 Open this URL in your browser to download the ZIP file with all processed files")
+                        else:
+                            st.error(f"❌ ZIP upload failed: {error}")
 
             # Show details for each file
             for filename, result in results.items():
@@ -666,11 +685,11 @@ def main():
                             if st.button(
                                 "🔗 Generate Shareable Link",
                                 key=f"share_{filename}",
-                                help="Upload to file.io and get a shareable download link"
+                                help="Upload to 0x0.st and get a shareable download link"
                             ):
-                                with st.spinner("Uploading to file.io..."):
-                                    share_url, error = upload_to_fileio(result['data'], output_filename)
-                                
+                                with st.spinner("Uploading to 0x0.st..."):
+                                    share_url, error = upload_to_0x0(csv_bytes, output_filename)
+
                                 if share_url:
                                     st.success("✅ Upload successful!")
                                     st.text_input(
@@ -679,7 +698,7 @@ def main():
                                         key=f"url_{filename}",
                                         help="Copy this URL to share the file"
                                     )
-                                    st.warning("⚠️ This link expires in 14 days or after 1 download (whichever comes first)")
+                                    st.warning("⚠️ This link expires after 100 days")
                                     st.info("💡 Open this URL in your browser to download the file")
                                 else:
                                     st.error(f"❌ Upload failed: {error}")
