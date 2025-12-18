@@ -373,6 +373,61 @@ def create_zip_archive(results):
     return zip_buffer.getvalue()
 
 
+def upload_to_fileio(df, filename):
+    """
+    Upload a processed CSV file to file.io and return a shareable link.
+    
+    Args:
+        df: pandas DataFrame containing processed data
+        filename: Name for the file (should end in .csv)
+    
+    Returns:
+        tuple: (url string or None, error message or None)
+    """
+    try:
+        # Convert DataFrame to CSV bytes
+        csv_buffer = io.StringIO()
+        df.to_csv(csv_buffer, index=False)
+        csv_bytes = csv_buffer.getvalue().encode('utf-8')
+        
+        # Prepare multipart form data
+        files = {'file': (filename, csv_bytes, 'text/csv')}
+        
+        # Upload to file.io with timeout
+        response = requests.post('https://file.io/', files=files, timeout=30)
+        response.raise_for_status()
+        
+        # Parse response
+        response_data = response.json()
+        
+        # Check if upload was successful
+        if response_data.get('success'):
+            url = response_data.get('link')
+            if url:
+                return url, None
+            else:
+                return None, "Upload succeeded but no download link was provided"
+        else:
+            error_msg = response_data.get('message', 'Unknown error')
+            return None, f"Upload failed: {error_msg}"
+            
+    except requests.exceptions.Timeout:
+        return None, "Upload timeout: Server took too long to respond (>30 seconds)"
+    except requests.exceptions.ConnectionError:
+        return None, "Connection error: Could not connect to file.io service"
+    except requests.exceptions.HTTPError as e:
+        if e.response.status_code == 413:
+            return None, "File too large: file.io has size limits for free tier"
+        elif e.response.status_code == 429:
+            return None, "Rate limit exceeded: Please wait a few minutes before trying again"
+        else:
+            return None, f"HTTP error {e.response.status_code}: {str(e)}"
+    except ValueError as e:
+        return None, "Invalid response from file.io service"
+    except Exception as e:
+        return None, f"Unexpected error: {str(e)}"
+
+
 def main():
     st.set_page_config(
         page_title="CSV Antenna Sweep Processor",
@@ -588,19 +643,46 @@ def main():
                         st.write("**Preview:**")
                         st.dataframe(result['data'].head(10), width='stretch')
 
-                        # Download button
+                        # Download button and shareable link button
                         csv_buffer = io.StringIO()
                         result['data'].to_csv(csv_buffer, index=False)
                         csv_bytes = csv_buffer.getvalue().encode()
 
                         output_filename = filename.replace('.csv', '_processed.csv')
-                        st.download_button(
-                            label=f"Download {output_filename}",
-                            data=csv_bytes,
-                            file_name=output_filename,
-                            mime='text/csv',
-                            key=f"download_{filename}"
-                        )
+                        
+                        # Create two columns for buttons
+                        col1, col2 = st.columns(2)
+                        
+                        with col1:
+                            st.download_button(
+                                label=f"📥 Download {output_filename}",
+                                data=csv_bytes,
+                                file_name=output_filename,
+                                mime='text/csv',
+                                key=f"download_{filename}"
+                            )
+                        
+                        with col2:
+                            if st.button(
+                                "🔗 Generate Shareable Link",
+                                key=f"share_{filename}",
+                                help="Upload to file.io and get a shareable download link"
+                            ):
+                                with st.spinner("Uploading to file.io..."):
+                                    share_url, error = upload_to_fileio(result['data'], output_filename)
+                                
+                                if share_url:
+                                    st.success("✅ Upload successful!")
+                                    st.text_input(
+                                        "Shareable Link (copy this URL):",
+                                        value=share_url,
+                                        key=f"url_{filename}",
+                                        help="Copy this URL to share the file"
+                                    )
+                                    st.warning("⚠️ This link expires in 14 days or after 1 download (whichever comes first)")
+                                    st.info("💡 Open this URL in your browser to download the file")
+                                else:
+                                    st.error(f"❌ Upload failed: {error}")
                     else:
                         st.error(f"Error: {result['message']}")
 
