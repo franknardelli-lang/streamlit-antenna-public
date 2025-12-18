@@ -373,9 +373,10 @@ def create_zip_archive(results):
     return zip_buffer.getvalue()
 
 
-def upload_to_0x0(data_bytes, filename):
+def upload_to_litterbox(data_bytes, filename):
     """
-    Upload file bytes to 0x0.st and return a shareable link.
+    Upload file bytes to litterbox.catbox.moe and return a shareable link.
+    Files are kept for 72 hours.
 
     Args:
         data_bytes: File content as bytes
@@ -385,35 +386,42 @@ def upload_to_0x0(data_bytes, filename):
         tuple: (url string or None, error message or None)
     """
     try:
-        # 0x0.st API - POST multipart form with file
+        # Litterbox API endpoint
+        url = 'https://litterbox.catbox.moe/resources/internals/api.php'
+
+        # Prepare the multipart form data
         files = {
-            'file': (filename, data_bytes, 'application/octet-stream')
+            'fileToUpload': (filename, data_bytes, 'application/octet-stream')
+        }
+
+        data = {
+            'reqtype': 'fileupload',
+            'time': '72h'  # Available options: 1h, 12h, 24h, 72h
         }
 
         headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
         }
 
-        url = 'https://0x0.st'
-
-        response = requests.post(url, files=files, headers=headers, timeout=60)
+        response = requests.post(url, files=files, data=data, headers=headers, timeout=60)
         response.raise_for_status()
 
-        # 0x0.st returns the download URL as plain text
+        # Litterbox returns the download URL as plain text
         download_url = response.text.strip()
 
+        # Validate the response
         if download_url and download_url.startswith('https://'):
             return download_url, None
         else:
-            return None, f"Invalid response from 0x0.st: {response.text[:200]}"
+            return None, f"Invalid response from litterbox: {response.text[:200]}"
 
     except requests.exceptions.Timeout:
         return None, "Upload timeout: Server took too long to respond (>60 seconds)"
     except requests.exceptions.ConnectionError:
-        return None, "Connection error: Could not connect to 0x0.st service"
+        return None, "Connection error: Could not connect to litterbox.catbox.moe service"
     except requests.exceptions.HTTPError as e:
         if e.response.status_code == 413:
-            return None, "File too large: 0x0.st has a 512MB limit"
+            return None, "File too large: litterbox has a 1GB limit"
         elif e.response.status_code == 429:
             return None, "Rate limit exceeded: Please wait a few minutes before trying again"
         else:
@@ -634,10 +642,10 @@ def main():
                     if st.button(
                         f"🔗 Generate Shareable Link for All ({success_count} files)",
                         key="share_all",
-                        help="Upload ZIP file to 0x0.st and get a shareable download link"
+                        help="Upload ZIP file to litterbox.catbox.moe and get a shareable download link"
                     ):
-                        with st.spinner("Uploading ZIP file to 0x0.st..."):
-                            share_url, error = upload_to_0x0(zip_data, "processed_files.zip")
+                        with st.spinner("Uploading ZIP file to litterbox.catbox.moe..."):
+                            share_url, error = upload_to_litterbox(zip_data, "processed_files.zip")
 
                         if share_url:
                             st.success("✅ ZIP upload successful!")
@@ -647,7 +655,7 @@ def main():
                                 key="url_all",
                                 help="Copy this URL to share the ZIP file"
                             )
-                            st.warning("⚠️ This link expires after 100 days")
+                            st.warning("⚠️ This link expires after 72 hours")
                             st.info("💡 Open this URL in your browser to download the ZIP file with all processed files")
                         else:
                             st.error(f"❌ ZIP upload failed: {error}")
@@ -685,10 +693,10 @@ def main():
                             if st.button(
                                 "🔗 Generate Shareable Link",
                                 key=f"share_{filename}",
-                                help="Upload to 0x0.st and get a shareable download link"
+                                help="Upload to litterbox.catbox.moe and get a shareable download link"
                             ):
-                                with st.spinner("Uploading to 0x0.st..."):
-                                    share_url, error = upload_to_0x0(csv_bytes, output_filename)
+                                with st.spinner("Uploading to litterbox.catbox.moe..."):
+                                    share_url, error = upload_to_litterbox(csv_bytes, output_filename)
 
                                 if share_url:
                                     st.success("✅ Upload successful!")
@@ -698,7 +706,7 @@ def main():
                                         key=f"url_{filename}",
                                         help="Copy this URL to share the file"
                                     )
-                                    st.warning("⚠️ This link expires after 100 days")
+                                    st.warning("⚠️ This link expires after 72 hours")
                                     st.info("💡 Open this URL in your browser to download the file")
                                 else:
                                     st.error(f"❌ Upload failed: {error}")
