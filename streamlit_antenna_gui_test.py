@@ -469,7 +469,7 @@ def main():
     # --- Sidebar ---
     with st.sidebar:
         st.header("📂 Data Upload")
-        uploaded_files = st.file_uploader("Upload processed CSV files", type=['csv'], accept_multiple_files=True)
+        uploaded_files = st.file_uploader("Upload processed CSV files", type=['csv'], accept_multiple_files=True, key='antenna_csv_uploader')
         
         # URL-based file loading
         with st.expander("🔗 Or Load from URLs"):

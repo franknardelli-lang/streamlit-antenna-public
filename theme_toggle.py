@@ -163,6 +163,82 @@ def apply_theme_toggle():
             background-color: #262730 !important;
             color: #fafafa !important;
         }
+
+        /* Multiselect widget - comprehensive styling */
+        div[data-baseweb="select"] {
+            background-color: #262730 !important;
+        }
+
+        div[data-baseweb="select"] input {
+            color: #fafafa !important;
+        }
+
+        /* Multiselect dropdown menu - all variations */
+        ul[role="listbox"],
+        div[data-baseweb="popover"] ul,
+        div[data-baseweb="menu"] ul {
+            background-color: #262730 !important;
+        }
+
+        ul[role="listbox"] li,
+        div[data-baseweb="popover"] li,
+        div[data-baseweb="menu"] li {
+            color: #fafafa !important;
+            background-color: #262730 !important;
+        }
+
+        ul[role="listbox"] li:hover,
+        div[data-baseweb="popover"] li:hover,
+        div[data-baseweb="menu"] li:hover {
+            background-color: #3d3d46 !important;
+            color: #ffffff !important;
+        }
+
+        /* Option text inside dropdown */
+        ul[role="listbox"] li span,
+        ul[role="listbox"] li div,
+        div[data-baseweb="popover"] li span,
+        div[data-baseweb="popover"] li div,
+        div[data-baseweb="menu"] li span,
+        div[data-baseweb="menu"] li div {
+            color: #fafafa !important;
+        }
+
+        /* Multiselect selected items/tags */
+        div[data-baseweb="tag"] {
+            background-color: #FF4B4B !important;
+            color: #ffffff !important;
+        }
+
+        div[data-baseweb="tag"] span {
+            color: #ffffff !important;
+        }
+
+        /* Select/dropdown text - all spans */
+        div[data-baseweb="select"] span,
+        div[data-baseweb="select"] div {
+            color: #fafafa !important;
+        }
+
+        /* Popover container background */
+        div[data-baseweb="popover"] {
+            background-color: #262730 !important;
+        }
+
+        /* Menu items - comprehensive */
+        [role="option"] {
+            color: #fafafa !important;
+            background-color: #262730 !important;
+        }
+
+        [role="option"]:hover {
+            background-color: #3d3d46 !important;
+        }
+
+        [role="option"] span,
+        [role="option"] div {
+            color: #fafafa !important;
+        }
         </style>
         """, unsafe_allow_html=True)
     else:
