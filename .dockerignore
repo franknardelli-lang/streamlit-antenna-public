@@ -1,0 +1,62 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Dev container
+.devcontainer/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Documentation and reference files
+*.md
+dev_reference.txt
+README.md
+
+# Test files
+*_test.py.bak
+test_*.py
+
+# Exclude link budget files (not needed for deployment)
+link_budget*.py
+app.py
+antenna_gui.py
+process_all_csv.py
+return*.py
+
+# Jupyter notebooks
+*.ipynb
+.ipynb_checkpoints/
+
+# Logs
+*.log
+
+# Data files (exclude if you have test data)
+*.csv
+*.zip
+data/
