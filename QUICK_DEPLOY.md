@@ -84,6 +84,53 @@ Your apps will be accessible at:
 
 ---
 
+## 🔄 Updating an Existing Deployment
+
+Already deployed and need to update with new changes? Follow these steps:
+
+### Step 1: Build and Push Updated Image (Local Machine)
+
+From your **local machine** terminal (where Docker Desktop is running):
+
+```bash
+cd ~/github/streamlit-antenna-public
+./build-and-push.sh
+```
+
+**What this does:**
+- Rebuilds your Docker image with the latest code changes
+- Pushes the new image to Docker Hub with the `:latest` tag
+
+**Time:** ~3-5 minutes
+
+### Step 2: Update Azure Deployment (Dev Container)
+
+From your **dev container** terminal (where Azure CLI is logged in):
+
+```bash
+./deploy-to-azure.sh
+```
+
+**What this does:**
+- Detects that the app already exists
+- Runs `az containerapp update` instead of create
+- Pulls the new `:latest` image from Docker Hub
+- Updates the running container app
+- No downtime needed - Azure handles the rollout
+
+**Time:** ~1-2 minutes
+
+### Quick Reference
+
+| Step | Where to Run | Command |
+|------|--------------|---------|
+| 1. Build & Push | Local Machine (Docker Desktop) | `./build-and-push.sh` |
+| 2. Update Azure | Dev Container (Azure CLI) | `./deploy-to-azure.sh` |
+
+**Your Live URL:** https://antenna-tools.greenstone-d56397b4.eastus.azurecontainerapps.io/
+
+---
+
 ## 🆘 Troubleshooting
 
 **Build fails?**
