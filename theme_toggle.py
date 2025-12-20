@@ -101,9 +101,23 @@ def apply_theme_toggle():
             color: #fafafa !important;
         }
 
-        /* Buttons */
+        /* Buttons - primary buttons */
+        button[data-testid="stBaseButton-primary"] {
+            background-color: #FF4B4B !important;
+            color: #ffffff !important;
+        }
+
+        /* Buttons - secondary buttons (the white ones) */
+        button[data-testid="stBaseButton-secondary"],
+        button[kind="secondary"] {
+            background-color: #262730 !important;
+            color: #fafafa !important;
+            border: 1px solid #525252 !important;
+        }
+
+        /* All other buttons */
         button {
-            color: #262730 !important;
+            color: #fafafa !important;
         }
 
         /* Success/Error/Warning messages */
@@ -147,6 +161,20 @@ def apply_theme_toggle():
             border: none !important;
         }
 
+        /* Uploaded file list items - make them readable */
+        div[data-testid="stFileUploaderFile"],
+        div[data-testid="stFileUploaderFile"] div,
+        div[data-testid="stFileUploaderFileName"],
+        .stFileUploaderFile,
+        .stFileUploaderFileName {
+            background-color: #3d3d46 !important;
+            color: #fafafa !important;
+        }
+
+        div[data-testid="stFileUploaderFile"] small {
+            color: #b0b0b0 !important;
+        }
+
         /* Expander borders */
         div[data-testid="stExpander"] {
             border: 1px solid #525252 !important;
@@ -158,9 +186,61 @@ def apply_theme_toggle():
             color: #fafafa !important;
         }
 
-        /* Text input */
+        /* Text input - be more specific */
+        input[type="text"],
+        input[type="url"],
+        input[type="email"],
+        input[type="number"],
         input {
             background-color: #262730 !important;
+            color: #fafafa !important;
+            border: 1px solid #525252 !important;
+        }
+
+        /* Text input in stTextInput component */
+        div[data-testid="stTextInput"] input,
+        div[data-baseweb="input"] input {
+            background-color: #262730 !important;
+            color: #fafafa !important;
+            border: 1px solid #525252 !important;
+        }
+
+        /* Text input inside markdown containers (for st.text_input) */
+        div[data-testid="stMarkdownContainer"] input,
+        div[data-testid="stMarkdownContainer"] input[type="text"] {
+            background-color: #262730 !important;
+            color: #fafafa !important;
+            border: 1px solid #525252 !important;
+        }
+
+        /* Force all input elements with white background to dark - super specific */
+        .stApp input[type="text"],
+        .stApp input[type="url"],
+        .stApp input[type="email"],
+        .stApp input[type="number"],
+        .stApp div input,
+        input[style*="background-color: rgb(255, 255, 255)"],
+        input[style*="background-color: white"] {
+            background-color: #262730 !important;
+            color: #fafafa !important;
+            border: 1px solid #525252 !important;
+        }
+
+        /* Number input step buttons (+ and -) */
+        button[data-testid="stNumberInputStepUp"],
+        button[data-testid="stNumberInputStepDown"] {
+            background-color: #3d3d46 !important;
+            color: #fafafa !important;
+            border: 1px solid #525252 !important;
+        }
+
+        button[data-testid="stNumberInputStepUp"]:hover,
+        button[data-testid="stNumberInputStepDown"]:hover {
+            background-color: #4d4d56 !important;
+        }
+
+        button[data-testid="stNumberInputStepUp"] svg,
+        button[data-testid="stNumberInputStepDown"] svg {
             color: #fafafa !important;
         }
 
