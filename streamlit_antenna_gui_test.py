@@ -319,16 +319,18 @@ def calculate_hpbw(angles_deg, P_dBm):
     return hpbw if hpbw < 180 else 360 - hpbw
 
 
-def process_dataset(df, iso_power_dBm):
+def calculate_polarization_metrics(angles_deg, field_dBuV_m, iso_power_dBm):
     """
-    Calculates all metrics for a given dataset.
-    
-    Returns:
-        dict: A dictionary containing the original df, calculated power values, and all stats.
-    """
-    angles_deg = df.iloc[:, 0].values
-    field_dBuV_m = df.iloc[:, 3].values
+    Calculate metrics for a single polarization.
 
+    Args:
+        angles_deg: Array of angle values
+        field_dBuV_m: Array of field strength values in dBµV/m
+        iso_power_dBm: Isotropic reference power
+
+    Returns:
+        tuple: (P_dBm array, stats dictionary)
+    """
     # --- Calculations ---
     E_V_per_m = 10**((field_dBuV_m - 120) / 20)
     P_watts = (E_V_per_m**2 * 3**2) / 30
@@ -348,19 +350,55 @@ def process_dataset(df, iso_power_dBm):
     peak_angle = angles_deg[np.argmax(P_dBm)]
     hpbw = calculate_hpbw(angles_deg, P_dBm)
 
+    stats = {
+        'Max (dBm)': max_dBm,
+        'Min (dBm)': min_dBm,
+        'Avg (dBm)': avg_dBm,
+        'Range (dB)': range_dB,
+        'Peak Angle (°)': peak_angle,
+        'HPBW (°)': hpbw,
+        'Efficiency (%)': efficiency,
+        'Efficiency (dB)': eff_dB,
+    }
+
+    return P_dBm, stats
+
+
+def process_dataset(df, iso_power_dBm):
+    """
+    Calculates all metrics for all polarizations in a dataset.
+
+    Returns:
+        dict: A dictionary containing the original df, angles, and data for all three polarizations
+              (vertical, horizontal, total)
+    """
+    angles_deg = df.iloc[:, 0].values
+
+    # Process all three polarizations
+    vertical_field = df.iloc[:, 1].values
+    horizontal_field = df.iloc[:, 2].values
+    total_field = df.iloc[:, 3].values
+
+    vertical_dBm, vertical_stats = calculate_polarization_metrics(angles_deg, vertical_field, iso_power_dBm)
+    horizontal_dBm, horizontal_stats = calculate_polarization_metrics(angles_deg, horizontal_field, iso_power_dBm)
+    total_dBm, total_stats = calculate_polarization_metrics(angles_deg, total_field, iso_power_dBm)
+
     return {
         "df": df,
         "angles_deg": angles_deg,
-        "P_dBm": P_dBm,
-        "stats": {
-            'Max (dBm)': max_dBm,
-            'Min (dBm)': min_dBm,
-            'Avg (dBm)': avg_dBm,
-            'Range (dB)': range_dB,
-            'Peak Angle (°)': peak_angle,
-            'HPBW (°)': hpbw,
-            'Efficiency (%)': efficiency,
-            'Efficiency (dB)': eff_dB,
+        "polarizations": {
+            "vertical": {
+                "P_dBm": vertical_dBm,
+                "stats": vertical_stats
+            },
+            "horizontal": {
+                "P_dBm": horizontal_dBm,
+                "stats": horizontal_stats
+            },
+            "total": {
+                "P_dBm": total_dBm,
+                "stats": total_stats
+            }
         }
     }
 
@@ -401,38 +439,64 @@ def load_and_process_data(_uploaded_files, iso_power_dBm):
 
 # --- Plotting and UI Functions ---
 
-def create_polar_plot(data_dict, selected_vars, plot_title, figsize, line_width, show_legend):
+def create_polar_plot(data_dict, selected_vars, selected_polarizations, plot_title, figsize, line_width, show_legend):
     """
     Create a polar plot of antenna radiation patterns from pre-processed data.
+
+    Args:
+        data_dict: Dictionary of processed datasets
+        selected_vars: List of selected dataset names
+        selected_polarizations: List of selected polarizations ('vertical', 'horizontal', 'total')
+        plot_title: Title for the plot
+        figsize: Tuple of (width, height) for figure size
+        line_width: Width of plot lines
+        show_legend: Boolean to show/hide legend
+
+    Returns:
+        matplotlib figure object
     """
     fig, ax = plt.subplots(subplot_kw={'projection': 'polar'}, figsize=figsize, dpi=100)
     fig.subplots_adjust(right=0.75)
     ax.set_theta_zero_location('N')
     ax.set_theta_direction(-1)
 
-    colors = plt.cm.jet(np.linspace(0, 1, len(selected_vars)))
+    # Calculate total number of lines to plot for color assignment
+    total_lines = len(selected_vars) * len(selected_polarizations)
+    colors = plt.cm.jet(np.linspace(0, 1, total_lines))
+
     legend_entries = []
     all_P_dBm = []
+    color_idx = 0
 
-    for i, var_name in enumerate(selected_vars):
+    for var_name in selected_vars:
         dataset = data_dict[var_name]
         angles_deg = dataset["angles_deg"]
-        P_dBm = dataset["P_dBm"]
 
-        theta = np.deg2rad(angles_deg)
-        theta = np.append(theta, theta[0])
-        P_dBm_plot = np.append(P_dBm, P_dBm[0])
+        # Remove '_totalField' suffix for cleaner naming
+        base_name = var_name.replace('_totalField', '')
 
-        ax.plot(theta, P_dBm_plot, label=var_name, linewidth=line_width, color=colors[i])
+        for polarization in selected_polarizations:
+            pol_data = dataset["polarizations"][polarization]
+            P_dBm = pol_data["P_dBm"]
+            stats = pol_data["stats"]
 
-        if show_legend:
-            stats = dataset["stats"]
-            legend_entries.append(
-                f"{var_name}\nmax→{stats['Max (dBm)']:.1f} dBm, min→{stats['Min (dBm)']:.1f} dBm"
-                f"\navg→{stats['Avg (dBm)']:.1f} dBm\neff→{stats['Efficiency (%)']:.1f}% ({stats['Efficiency (dB)']:.1f} dB)"
-            )
-        
-        all_P_dBm.extend(P_dBm)
+            theta = np.deg2rad(angles_deg)
+            theta = np.append(theta, theta[0])
+            P_dBm_plot = np.append(P_dBm, P_dBm[0])
+
+            # Create label with polarization suffix
+            label = f"{base_name}_{polarization}"
+
+            ax.plot(theta, P_dBm_plot, label=label, linewidth=line_width, color=colors[color_idx])
+
+            if show_legend:
+                legend_entries.append(
+                    f"{label}\nmax→{stats['Max (dBm)']:.1f} dBm, min→{stats['Min (dBm)']:.1f} dBm"
+                    f"\navg→{stats['Avg (dBm)']:.1f} dBm\neff→{stats['Efficiency (%)']:.1f}% ({stats['Efficiency (dB)']:.1f} dB)"
+                )
+
+            all_P_dBm.extend(P_dBm)
+            color_idx += 1
 
     if all_P_dBm:
         ax.set_rlim([np.floor(np.min(all_P_dBm)) - 5, np.ceil(np.max(all_P_dBm)) + 5])
@@ -594,7 +658,25 @@ def main():
         st.markdown("---")
         st.header("⚙️ Global Parameters")
         iso_power = st.number_input("Isotropic Power (dBm)", value=0.0, step=0.1, format="%.1f", help="Reference isotropic power for efficiency calculation.")
-        
+
+        st.markdown("---")
+        st.header("📊 Polarization Selection")
+        st.markdown("Select which polarizations to plot:")
+
+        # Checkboxes for polarization selection
+        show_total = st.checkbox("Total", value=True, help="Plot total field strength (Column 4)")
+        show_vertical = st.checkbox("Vertical", value=False, help="Plot vertical polarization (Column 2)")
+        show_horizontal = st.checkbox("Horizontal", value=False, help="Plot horizontal polarization (Column 3)")
+
+        # Build list of selected polarizations
+        selected_polarizations = []
+        if show_total:
+            selected_polarizations.append("total")
+        if show_vertical:
+            selected_polarizations.append("vertical")
+        if show_horizontal:
+            selected_polarizations.append("horizontal")
+
         st.markdown("---")
         st.header("🎨 Plot Customization")
         plot_title = st.text_input("Plot Title", value="Antenna Radiation Pattern")
@@ -646,6 +728,10 @@ def main():
         st.info("👆 Please select at least one dataset to plot.")
         return
 
+    if not selected_polarizations:
+        st.warning("⚠️ Please select at least one polarization to plot.")
+        return
+
     # --- Tabs for Plot and Stats ---
     tab1, tab2 = st.tabs(["📈 Plot", "📋 Statistics Summary"])
 
@@ -653,7 +739,7 @@ def main():
         st.header("Radiation Pattern Plot")
         with st.spinner("Generating plot..."):
             try:
-                fig = create_polar_plot(data_dict, selected_vars, plot_title, (fig_width, fig_height), line_width, show_legend)
+                fig = create_polar_plot(data_dict, selected_vars, selected_polarizations, plot_title, (fig_width, fig_height), line_width, show_legend)
                 
                 plot_as_bytes = fig_to_bytes(fig, dpi=fig.dpi)
                 st.image(plot_as_bytes, use_container_width=False)
@@ -673,15 +759,22 @@ def main():
 
     with tab2:
         st.header("Statistics Summary")
-        
+
         stats_list = []
         for var_name in selected_vars:
-            stats = data_dict[var_name]["stats"]
-            stats['Dataset'] = var_name
-            stats_list.append(stats)
-        
+            dataset = data_dict[var_name]
+            # Remove '_totalField' suffix for cleaner naming
+            base_name = var_name.replace('_totalField', '')
+
+            for polarization in selected_polarizations:
+                pol_data = dataset["polarizations"][polarization]
+                stats = pol_data["stats"].copy()
+                # Add dataset name with polarization suffix
+                stats['Dataset'] = f"{base_name}_{polarization}"
+                stats_list.append(stats)
+
         stats_df = pd.DataFrame(stats_list)
-        
+
         # Reorder columns
         cols = ['Dataset', 'Max (dBm)', 'Min (dBm)', 'Avg (dBm)', 'Range (dB)', 'Peak Angle (°)', 'HPBW (°)', 'Efficiency (%)', 'Efficiency (dB)']
         stats_df = stats_df[cols]
