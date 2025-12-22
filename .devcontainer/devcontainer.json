@@ -56,5 +56,15 @@
       "label": "Streamlit App",
       "onAutoForward": "notify"
     }
+  },
+
+  // Mount SSH keys and enable agent forwarding
+  "mounts": [
+    "source=${localEnv:HOME}${localEnv:USERPROFILE}/.ssh,target=/home/vscode/.ssh,type=bind,consistency=cached"
+  ],
+
+  // Forward SSH agent
+  "remoteEnv": {
+    "SSH_AUTH_SOCK": "${localEnv:SSH_AUTH_SOCK}"
   }
 }
