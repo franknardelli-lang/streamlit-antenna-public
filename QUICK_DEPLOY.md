@@ -129,6 +129,89 @@ From your **dev container** terminal (where Azure CLI is logged in):
 
 **Your Live URL:** https://antenna-tools.greenstone-d56397b4.eastus.azurecontainerapps.io/
 
+### Force Update (If deploy-to-azure.sh doesn't pull new image)
+
+Sometimes Azure caches the `:latest` tag and doesn't pull the new image. Use this command to force an update:
+
+```bash
+az containerapp update \
+  --name antenna-tools \
+  --resource-group antenna-tools-rg \
+  --image docker.io/franknardelli/antenna-tools:latest \
+  --revision-suffix $(date +%s)
+```
+
+**What the revision suffix does:**
+- Creates a new revision with a timestamp (e.g., `antenna-tools--1766363310`)
+- Forces Azure to pull the latest image from Docker Hub
+- Routes 100% traffic to the new revision automatically
+- Old revision is kept but set to 0% traffic (automatic rollback available if needed)
+
+---
+
+## 📊 Monitoring Deployment Status
+
+### Check Active Revisions
+
+See all revisions and their traffic distribution:
+
+```bash
+az containerapp revision list \
+  --name antenna-tools \
+  --resource-group antenna-tools-rg \
+  --output table
+```
+
+**Output example:**
+```
+CreatedTime                Active    Replicas    TrafficWeight    HealthState    Name
+-------------------------  --------  ----------  ---------------  -------------  -------------------------
+2025-12-22T00:21:21+00:00  True      1           0                Healthy        antenna-tools--1766362871
+2025-12-22T00:28:40+00:00  True      1           100              Healthy        antenna-tools--1766363310
+```
+
+**What to look for:**
+- **TrafficWeight**: 100 means this revision is live and receiving all traffic
+- **HealthState**: "Healthy" means container is running properly
+  - "None" means container is still starting up (wait 30-60 seconds)
+  - "Unhealthy" means something is wrong (check logs)
+- **Active**: True means the revision is still deployed
+
+### Check Current Image
+
+Verify which Docker image is currently deployed:
+
+```bash
+az containerapp show \
+  --name antenna-tools \
+  --resource-group antenna-tools-rg \
+  --query "properties.template.containers[0].image" \
+  --output tsv
+```
+
+### View Logs (If Troubleshooting)
+
+If something isn't working, check the container logs:
+
+```bash
+az containerapp logs show \
+  --name antenna-tools \
+  --resource-group antenna-tools-rg \
+  --follow
+```
+
+Press `Ctrl+C` to exit log viewing.
+
+### Typical Update Timeline
+
+1. **0:00** - Run force update command
+2. **0:30** - New revision created (HealthState: None)
+3. **1:00** - Container starting (HealthState: None)
+4. **1:30** - Container healthy (HealthState: Healthy)
+5. **2:00** - Full rollout complete, old revision at 0% traffic
+
+**Total time:** ~1-2 minutes for simple updates
+
 ---
 
 ## 🆘 Troubleshooting
