@@ -533,7 +533,18 @@ def main():
     # --- Sidebar ---
     with st.sidebar:
         st.header("📂 Data Upload")
-        uploaded_files = st.file_uploader("Upload processed CSV files", type=['csv'], accept_multiple_files=True, key='antenna_csv_uploader')
+
+        # Initialize session state for uploaded files if not exists
+        if 'uploaded_files' not in st.session_state:
+            st.session_state.uploaded_files = []
+
+        uploaded_files_widget = st.file_uploader("Upload processed CSV files", type=['csv'], accept_multiple_files=True, key='antenna_csv_uploader')
+
+        # Store uploaded files in session state to persist across theme changes
+        if uploaded_files_widget:
+            st.session_state.uploaded_files = list(uploaded_files_widget)
+
+        uploaded_files = st.session_state.uploaded_files
         
         # URL-based file loading
         with st.expander("🔗 Or Load from URLs"):
@@ -589,40 +600,51 @@ def main():
             load_zip_button = st.button("📦 Load ZIP File", type="secondary")
 
         # Process URL downloads
-        url_files = []
+        # Initialize session state for url_files if not exists
+        if 'url_files' not in st.session_state:
+            st.session_state.url_files = []
+
         if load_urls_button and url_input:
             urls = [url.strip() for url in url_input.split('\n') if url.strip()]
-            
+
             if urls:
                 with st.spinner(f"Downloading {len(urls)} file(s)..."):
                     success_count = 0
                     error_messages = []
-                    
+                    downloaded_files = []
+
                     for url in urls:
                         # Basic URL validation
                         if not url.startswith(('http://', 'https://')):
                             error_messages.append(f"⚠️ Invalid URL format: {url[:50]}...")
                             continue
-                        
+
                         content, filename, error = download_file_from_url(url)
-                        
+
                         if error:
                             error_messages.append(f"❌ {url[:50]}...: {error}")
                         elif content and filename:
-                            url_files.append(UploadedFileFromURL(content, filename))
+                            downloaded_files.append(UploadedFileFromURL(content, filename))
                             success_count += 1
-                    
+
+                    # Store in session state so it persists across reruns
+                    if downloaded_files:
+                        st.session_state.url_files = downloaded_files
+
                     # Display results
                     if success_count > 0:
                         st.success(f"✅ Successfully loaded {success_count} file(s)")
                         with st.expander("📄 Loaded files", expanded=False):
-                            for f in url_files:
+                            for f in st.session_state.url_files:
                                 st.write(f"• {f.name}")
-                    
+
                     if error_messages:
                         with st.expander(f"⚠️ {len(error_messages)} error(s)", expanded=True):
                             for msg in error_messages:
                                 st.error(msg)
+
+        # Get url_files from session state
+        url_files = st.session_state.url_files
 
         # Process ZIP download
         # Initialize session state for zip_files if not exists
