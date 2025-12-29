@@ -35,7 +35,7 @@ import pandas as pd
 from scipy.interpolate import interp1d
 import streamlit as st
 import requests
-from urllib.parse import urlparse, parse_qs
+from urllib.parse import urlparse
 
 
 # --- URL File Loading Classes and Functions ---
@@ -318,7 +318,7 @@ def process_csv_data(df, filename):
 
         # Interpolate sweep 2 onto sweep 1 angles
         interp_func = interp1d(df2_mean['angle'], df2_mean['field'],
-                               kind='linear', fill_value='extrapolate')
+                               kind='linear', fill_value='extrapolate')  # type: ignore[arg-type]
         f2_on_1 = interp_func(ang1)
 
         # Convert dBµV/m to V/m

@@ -43,7 +43,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import streamlit as st
 import requests
-from urllib.parse import urlparse, parse_qs
+from urllib.parse import urlparse
 
 # --- URL File Loading Classes and Functions ---
 
@@ -101,7 +101,6 @@ def convert_share_url_to_direct(url):
         str: Direct download URL
     """
     # Parse the URL to safely check the domain
-    from urllib.parse import urlparse
     parsed = urlparse(url)
     domain = parsed.netloc.lower()
     
@@ -147,7 +146,6 @@ def download_file_from_url(url, timeout=30):
     """
     try:
         # Validate URL scheme (only allow http and https)
-        from urllib.parse import urlparse
         parsed = urlparse(url)
         if parsed.scheme not in ('http', 'https'):
             return None, None, f"Invalid URL scheme: {parsed.scheme}. Only HTTP and HTTPS are allowed."
@@ -457,12 +455,12 @@ def create_polar_plot(data_dict, selected_vars, selected_polarizations, plot_tit
     """
     fig, ax = plt.subplots(subplot_kw={'projection': 'polar'}, figsize=figsize, dpi=100)
     fig.subplots_adjust(right=0.75)
-    ax.set_theta_zero_location('N')
-    ax.set_theta_direction(-1)
+    ax.set_theta_zero_location('N')  # type: ignore[attr-defined]
+    ax.set_theta_direction(-1)  # type: ignore[attr-defined]
 
     # Calculate total number of lines to plot for color assignment
     total_lines = len(selected_vars) * len(selected_polarizations)
-    colors = plt.cm.jet(np.linspace(0, 1, total_lines))
+    colors = plt.cm.get_cmap('jet')(np.linspace(0, 1, total_lines))
 
     legend_entries = []
     all_P_dBm = []
@@ -499,9 +497,9 @@ def create_polar_plot(data_dict, selected_vars, selected_polarizations, plot_tit
             color_idx += 1
 
     if all_P_dBm:
-        ax.set_rlim([np.floor(np.min(all_P_dBm)) - 5, np.ceil(np.max(all_P_dBm)) + 5])
+        ax.set_rlim([np.floor(np.min(all_P_dBm)) - 5, np.ceil(np.max(all_P_dBm)) + 5])  # type: ignore[attr-defined]
     else:
-        ax.set_rlim([-10, 10])
+        ax.set_rlim([-10, 10])  # type: ignore[attr-defined]
 
     ax.set_title(plot_title, pad=20)
 
@@ -762,8 +760,8 @@ def main():
         with st.spinner("Generating plot..."):
             try:
                 fig = create_polar_plot(data_dict, selected_vars, selected_polarizations, plot_title, (fig_width, fig_height), line_width, show_legend)
-                
-                plot_as_bytes = fig_to_bytes(fig, dpi=fig.dpi)
+
+                plot_as_bytes = fig_to_bytes(fig, dpi=int(fig.dpi))
                 st.image(plot_as_bytes, use_container_width=False)
 
                 # Download Buttons
