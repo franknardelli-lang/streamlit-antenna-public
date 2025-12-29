@@ -3,6 +3,53 @@ import math
 import numpy as np
 import matplotlib.pyplot as plt
 
+# --- Theme Helper Functions ---
+
+def get_theme_colors():
+    """
+    Get colors that work with current Streamlit theme.
+    Returns a dictionary with background, text, grid, and line colors.
+    """
+    is_dark = st.session_state.get('dark_mode_enabled', False)
+
+    if is_dark:
+        return {
+            'bg': '#0e1117',
+            'text': '#fafafa',
+            'grid': '#3d3d46',
+            'title': '#ffffff',
+            'line1': '#1f77b4',  # Blue that works on dark
+            'line2': '#ff6b6b',  # Red that works on dark
+            'legend_bg': '#262730',
+            'legend_edge': '#525252'
+        }
+    else:
+        return {
+            'bg': '#ffffff',
+            'text': '#262730',
+            'grid': '#cccccc',
+            'title': '#262730',
+            'line1': '#1f77b4',  # Standard blue
+            'line2': '#d62728',  # Standard red
+            'legend_bg': '#ffffff',
+            'legend_edge': '#cccccc'
+        }
+
+
+def apply_theme_to_figure(fig, ax, theme_colors):
+    """
+    Apply theme colors to a matplotlib figure and axes.
+    """
+    fig.patch.set_facecolor(theme_colors['bg'])
+    ax.set_facecolor(theme_colors['bg'])
+    ax.tick_params(colors=theme_colors['text'], which='both')
+    for spine in ax.spines.values():
+        spine.set_color(theme_colors['grid'])
+    ax.xaxis.label.set_color(theme_colors['text'])
+    ax.yaxis.label.set_color(theme_colors['text'])
+    ax.title.set_color(theme_colors['title'])
+
+
 # --- Calculation functions ---
 
 def compute_distance_classic(f_mhz, n, pt, gt, gr, ltx, lrx, loth, fm, sens):
@@ -92,13 +139,22 @@ for n_val in n_values:
         d_km2, _, _, _, _ = compute_distance_logdist(f_mhz, n_val, pt, gt, gr, ltx, lrx, loth, fm, sens, d0_m)
     d_meters.append(d_km2 * 1000)
 
+# Get theme colors and create plot
+theme_colors = get_theme_colors()
+
 fig, ax = plt.subplots(figsize=(6, 4))
-ax.plot(n_values, d_meters, marker="o", color="blue", label="Distance vs n")
-ax.axvline(n, color="red", linestyle="--", label="Current n")
+apply_theme_to_figure(fig, ax, theme_colors)
+
+ax.plot(n_values, d_meters, marker="o", color=theme_colors['line1'], label="Distance vs n")
+ax.axvline(n, color=theme_colors['line2'], linestyle="--", label="Current n")
 ax.set_xlabel("Path-loss exponent n")
 ax.set_ylabel("Distance (m)")
-ax.grid(True)
-ax.legend()
+ax.grid(True, color=theme_colors['grid'], alpha=0.5)
+ax.legend(
+    facecolor=theme_colors['legend_bg'],
+    edgecolor=theme_colors['legend_edge'],
+    labelcolor=theme_colors['text']
+)
 ax.set_title(f"Distance vs n ({model_type})")
 
 with col2:

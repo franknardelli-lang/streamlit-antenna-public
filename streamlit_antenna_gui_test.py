@@ -439,6 +439,71 @@ def load_and_process_data(_uploaded_files, iso_power_dBm):
 
 # --- Plotting and UI Functions ---
 
+def get_theme_colors():
+    """
+    Get colors that work with current Streamlit theme.
+    Returns a dictionary with background, text, grid, and line colors.
+    """
+    is_dark = st.session_state.get('dark_mode_enabled', False)
+
+    if is_dark:
+        return {
+            'bg': '#0e1117',
+            'text': '#fafafa',
+            'grid': '#3d3d46',
+            'title': '#ffffff',
+            'legend_bg': '#262730',
+            'legend_edge': '#525252'
+        }
+    else:
+        return {
+            'bg': '#ffffff',
+            'text': '#262730',
+            'grid': '#cccccc',
+            'title': '#262730',
+            'legend_bg': '#ffffff',
+            'legend_edge': '#cccccc'
+        }
+
+
+def apply_theme_to_figure(fig, ax, theme_colors):
+    """
+    Apply theme colors to a matplotlib figure and axes.
+
+    Args:
+        fig: matplotlib figure object
+        ax: matplotlib axes object
+        theme_colors: dictionary from get_theme_colors()
+    """
+    # Set figure background
+    fig.patch.set_facecolor(theme_colors['bg'])
+
+    # Set axes background
+    ax.set_facecolor(theme_colors['bg'])
+
+    # Set tick colors
+    ax.tick_params(colors=theme_colors['text'], which='both')
+
+    # Set spine colors (for polar plots, this affects the outer ring)
+    for spine in ax.spines.values():
+        spine.set_color(theme_colors['grid'])
+
+    # Set grid color
+    ax.grid(True, color=theme_colors['grid'], alpha=0.5)
+
+    # Set title color
+    ax.title.set_color(theme_colors['title'])
+
+    # For polar plots, set the radial and angular tick labels
+    if hasattr(ax, 'set_rgrids'):
+        # Radial labels
+        for label in ax.get_yticklabels():
+            label.set_color(theme_colors['text'])
+        # Angular labels
+        for label in ax.get_xticklabels():
+            label.set_color(theme_colors['text'])
+
+
 def create_polar_plot(data_dict, selected_vars, selected_polarizations, plot_title, figsize, line_width, show_legend):
     """
     Create a polar plot of antenna radiation patterns from pre-processed data.
@@ -455,14 +520,21 @@ def create_polar_plot(data_dict, selected_vars, selected_polarizations, plot_tit
     Returns:
         matplotlib figure object
     """
+    # Get theme colors for the plot
+    theme_colors = get_theme_colors()
+
     fig, ax = plt.subplots(subplot_kw={'projection': 'polar'}, figsize=figsize, dpi=100)
     fig.subplots_adjust(right=0.75)
     ax.set_theta_zero_location('N')
     ax.set_theta_direction(-1)
 
+    # Apply theme colors to figure
+    apply_theme_to_figure(fig, ax, theme_colors)
+
     # Calculate total number of lines to plot for color assignment
+    # Use a colormap that has good contrast on both light and dark backgrounds
     total_lines = len(selected_vars) * len(selected_polarizations)
-    colors = plt.cm.jet(np.linspace(0, 1, total_lines))
+    colors = plt.cm.tab10(np.linspace(0, 1, max(total_lines, 10)))[:total_lines]
 
     legend_entries = []
     all_P_dBm = []
@@ -503,10 +575,18 @@ def create_polar_plot(data_dict, selected_vars, selected_polarizations, plot_tit
     else:
         ax.set_rlim([-10, 10])
 
-    ax.set_title(plot_title, pad=20)
+    ax.set_title(plot_title, pad=20, color=theme_colors['title'])
 
     if show_legend and legend_entries:
-        lgd = ax.legend(legend_entries, loc='upper left', bbox_to_anchor=(1.05, 1), fontsize=8)
+        lgd = ax.legend(
+            legend_entries,
+            loc='upper left',
+            bbox_to_anchor=(1.05, 1),
+            fontsize=8,
+            facecolor=theme_colors['legend_bg'],
+            edgecolor=theme_colors['legend_edge'],
+            labelcolor=theme_colors['text']
+        )
         plt.setp(lgd.get_texts(), linespacing=1.2)
 
     return fig

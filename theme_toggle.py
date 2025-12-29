@@ -125,9 +125,18 @@ def apply_theme_toggle():
             color: #fafafa !important;
         }
 
-        /* Dataframes */
-        .stDataFrame {
-            color: #262730 !important;
+        /* Dataframes - light text on dark background */
+        .stDataFrame,
+        .stDataFrame div,
+        .stDataFrame span,
+        .stDataFrame td,
+        .stDataFrame th,
+        div[data-testid="stDataFrame"] div,
+        div[data-testid="stDataFrame"] span,
+        div[data-testid="stDataFrame"] td,
+        div[data-testid="stDataFrame"] th {
+            color: #fafafa !important;
+            background-color: #262730 !important;
         }
 
         /* File uploader dropzone - keep text black for readability */
