@@ -1,6 +1,6 @@
 #!/bin/bash
-# Deploy to Azure Container Apps from Docker Hub
-# Prerequisites: Azure CLI installed and logged in (az login)
+# Deploy to Azure Container Apps (Build -> Push -> Deploy)
+# Prerequisites: Docker running, Azure CLI logged in
 
 set -e  # Exit on error
 
@@ -13,17 +13,31 @@ LOCATION="eastus"
 APP_NAME="antenna-tools"
 CONTAINER_APP_ENV="antenna-env"
 
-echo "🚀 Deploying to Azure Container Apps..."
-echo ""
+echo "🚀 Starting Deployment: Build -> Push -> Deploy"
+echo "============================================="
 
-# Check if logged into Azure
-echo "Checking Azure login status..."
+# 1. Check Azure Login
+echo "📋 Checking Azure login..."
 az account show > /dev/null 2>&1 || {
     echo "❌ Not logged into Azure. Please run: az login"
     exit 1
 }
-
 echo "✅ Azure login confirmed"
+echo ""
+
+# 2. Build Docker Image
+echo "🐳 Building Docker image..."
+docker build -t ${DOCKER_USERNAME}/${IMAGE_NAME}:${TAG} .
+echo "✅ Build complete"
+echo ""
+
+# 3. Push to Docker Hub
+echo "📤 Pushing to Docker Hub..."
+docker push ${DOCKER_USERNAME}/${IMAGE_NAME}:${TAG} || {
+    echo "❌ Push failed. Please run 'docker login' and try again."
+    exit 1
+}
+echo "✅ Push complete"
 echo ""
 
 # Create Container Apps environment if it doesn't exist

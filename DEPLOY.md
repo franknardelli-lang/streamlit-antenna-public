@@ -69,14 +69,10 @@ docker run -p 8501:8501 antenna-tools:local
 
 ## Updating Your App
 
-1. Run `./build-and-push.sh` locally to update Docker Hub.
-2. Run the update command:
+Simply run the deployment script again. It handles building, pushing, and updating Azure:
 
 ```bash
-# Update the container app (it will pull the new image from Docker Hub)
-az containerapp update \
-  --name $APP_NAME \
-  --resource-group $RESOURCE_GROUP
+./deploy-to-azure.sh
 ```
 
 ## For Your IT Department

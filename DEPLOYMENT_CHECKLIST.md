@@ -48,41 +48,10 @@ az containerapp env create \
 
 ### Step 2: Build and Deploy
 
+Run the unified deployment script:
+
 ```bash
-# Build in Azure (no local Docker needed!)
-az acr build \
-  --registry $ACR_NAME \
-  --image antenna-tools:latest \
-  --file Dockerfile \
-  .
-
-# Get ACR credentials
-ACR_SERVER=$(az acr show --name $ACR_NAME --query loginServer --output tsv)
-ACR_USERNAME=$(az acr credential show --name $ACR_NAME --query username --output tsv)
-ACR_PASSWORD=$(az acr credential show --name $ACR_NAME --query passwords[0].value --output tsv)
-
-# Deploy the app
-az containerapp create \
-  --name $APP_NAME \
-  --resource-group $RESOURCE_GROUP \
-  --environment $CONTAINER_APP_ENV \
-  --image $ACR_SERVER/antenna-tools:latest \
-  --registry-server $ACR_SERVER \
-  --registry-username $ACR_USERNAME \
-  --registry-password $ACR_PASSWORD \
-  --target-port 8501 \
-  --ingress external \
-  --cpu 0.5 \
-  --memory 1.0Gi \
-  --min-replicas 0 \
-  --max-replicas 2
-
-# Get your app URL
-az containerapp show \
-  --name $APP_NAME \
-  --resource-group $RESOURCE_GROUP \
-  --query properties.configuration.ingress.fqdn \
-  --output tsv
+./deploy-to-azure.sh
 ```
 
 ### Step 3: Access Your App
@@ -97,17 +66,7 @@ https://<app-name>.<random-id>.<region>.azurecontainerapps.io
 When you make changes:
 
 ```bash
-# Rebuild image
-az acr build \
-  --registry $ACR_NAME \
-  --image antenna-tools:latest \
-  --file Dockerfile \
-  .
-
-# Update app (pulls new image automatically)
-az containerapp update \
-  --name $APP_NAME \
-  --resource-group $RESOURCE_GROUP
+./deploy-to-azure.sh
 ```
 
 ## 📊 Monitor Your App

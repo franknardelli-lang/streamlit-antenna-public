@@ -2,38 +2,19 @@
 
 ## 🚀 Deploy Your Streamlit Apps to Azure
 
-You have everything set up! Here's how to deploy:
+You have everything set up! Here's how to deploy using the single unified script.
 
-### Step 1: Build and Push to Docker Hub (On your local machine)
+### Single Step: Build, Push, and Deploy
 
-Since you're SSH'd into your local machine with Docker Desktop:
+Run this from your local machine (where Docker Desktop and Azure CLI are installed):
 
 ```bash
 cd /workspaces/streamlit-antenna-public
 
-# Build and push to Docker Hub
-./build-and-push.sh
-```
-
-**What this does:**
-- Builds your Docker image locally
-- Asks you to login to Docker Hub (username: `franknardelli`)
-- Pushes the image to Docker Hub
-
-**Time:** ~3-5 minutes
-
-### Step 2: Deploy to Azure (From this dev container OR local machine)
-
-After the image is pushed to Docker Hub:
-
-```bash
 # Make sure you're logged into Azure
-az account show
-
-# If not logged in, run:
 # az login
 
-# Deploy to Azure Container Apps
+# Run the unified deployment script
 ./deploy-to-azure.sh
 ```
 
