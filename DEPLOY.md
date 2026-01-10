@@ -19,47 +19,25 @@ az login
 # 2. Set variables (customize these)
 RESOURCE_GROUP="antenna-tools-rg"
 LOCATION="eastus"
-ACR_NAME="antennatoolsacr"  # Must be globally unique, lowercase, alphanumeric only
 APP_NAME="antenna-tools-app"
 CONTAINER_APP_ENV="antenna-tools-env"
+DOCKER_USER="franknardelli"  # Your Docker Hub username
 
 # 3. Create resource group
 az group create --name $RESOURCE_GROUP --location $LOCATION
 
-# 4. Create Azure Container Registry (ACR)
-az acr create \
-  --resource-group $RESOURCE_GROUP \
-  --name $ACR_NAME \
-  --sku Basic \
-  --admin-enabled true
-
-# 5. Build and push image to ACR (this builds in Azure, no local Docker needed)
-az acr build \
-  --registry $ACR_NAME \
-  --image antenna-tools:latest \
-  --file Dockerfile \
-  .
-
-# 6. Get ACR credentials
-ACR_SERVER=$(az acr show --name $ACR_NAME --query loginServer --output tsv)
-ACR_USERNAME=$(az acr credential show --name $ACR_NAME --query username --output tsv)
-ACR_PASSWORD=$(az acr credential show --name $ACR_NAME --query passwords[0].value --output tsv)
-
-# 7. Create Container Apps environment
+# 4. Create Container Apps environment
 az containerapp env create \
   --name $CONTAINER_APP_ENV \
   --resource-group $RESOURCE_GROUP \
   --location $LOCATION
 
-# 8. Deploy container app
+# 5. Deploy container app (Using Public Docker Hub)
 az containerapp create \
   --name $APP_NAME \
   --resource-group $RESOURCE_GROUP \
   --environment $CONTAINER_APP_ENV \
-  --image $ACR_SERVER/antenna-tools:latest \
-  --registry-server $ACR_SERVER \
-  --registry-username $ACR_USERNAME \
-  --registry-password $ACR_PASSWORD \
+  --image docker.io/$DOCKER_USER/antenna-tools:latest \
   --target-port 8501 \
   --ingress external \
   --cpu 0.5 \
@@ -67,7 +45,7 @@ az containerapp create \
   --min-replicas 0 \
   --max-replicas 2
 
-# 9. Get the app URL
+# 6. Get the app URL
 az containerapp show \
   --name $APP_NAME \
   --resource-group $RESOURCE_GROUP \
@@ -91,15 +69,11 @@ docker run -p 8501:8501 antenna-tools:local
 
 ## Updating Your App
 
-```bash
-# Rebuild and push new image
-az acr build \
-  --registry $ACR_NAME \
-  --image antenna-tools:latest \
-  --file Dockerfile \
-  .
+1. Run `./build-and-push.sh` locally to update Docker Hub.
+2. Run the update command:
 
-# Update the container app (it will pull the new image)
+```bash
+# Update the container app (it will pull the new image from Docker Hub)
 az containerapp update \
   --name $APP_NAME \
   --resource-group $RESOURCE_GROUP

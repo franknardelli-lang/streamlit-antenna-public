@@ -53,6 +53,8 @@ az containerapp create \
       --name ${APP_NAME} \
       --resource-group ${RESOURCE_GROUP} \
       --image docker.io/${DOCKER_USERNAME}/${IMAGE_NAME}:${TAG} \
+      --min-replicas 0 \
+      --max-replicas 2 \
       --output table
 }
 

@@ -32,19 +32,12 @@ az login
 # Set your variables (customize these!)
 export RESOURCE_GROUP="antenna-tools-rg"
 export LOCATION="eastus"
-export ACR_NAME="antennatoolsacr"  # Must be unique, lowercase, alphanumeric
 export APP_NAME="antenna-tools"
 export CONTAINER_APP_ENV="antenna-env"
+export DOCKER_USER="franknardelli"
 
 # Create resource group
 az group create --name $RESOURCE_GROUP --location $LOCATION
-
-# Create Azure Container Registry
-az acr create \
-  --resource-group $RESOURCE_GROUP \
-  --name $ACR_NAME \
-  --sku Basic \
-  --admin-enabled true
 
 # Create Container Apps environment
 az containerapp env create \
