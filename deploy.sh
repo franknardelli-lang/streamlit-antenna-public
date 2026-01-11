@@ -5,7 +5,7 @@ set -e # Exit immediately if a command exits with a non-zero status.
 # Configuration
 SERVER_USER="alan"
 SERVER_IP="192.168.1.162"
-APP_FOLDER="/opt/stacks/link-budget-gemini"
+APP_FOLDER="/opt/stacks/streamlit-antenna-public"
 
 echo "🚀 Pushing changes to GitHub..."
 git push
@@ -31,4 +31,4 @@ EOF
 # Execute the commands on the remote server via SSH
 ssh $SERVER_USER@$SERVER_IP "bash -c '$REMOTE_COMMANDS'"
 
-echo "✅ Deployment complete! App should be running at http://$SERVER_IP:8502"
+echo "✅ Deployment complete! App should be running at http://$SERVER_IP:8501"
