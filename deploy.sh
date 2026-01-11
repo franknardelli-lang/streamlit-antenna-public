@@ -23,6 +23,10 @@ cd $APP_FOLDER
 echo "[REMOTE] Pulling latest code from GitHub..."
 git pull
 
+echo "[REMOTE] Stopping and removing old container (if exists)..."
+docker stop antenna-tools-container || true
+docker rm antenna-tools-container || true
+
 echo "[REMOTE] Building and starting container with Docker Compose..."
 docker compose up -d --build
 EOF
